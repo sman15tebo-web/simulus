@@ -325,7 +325,7 @@ function renderStudents() {
               <button class="btn btn-outline btn-sm" onclick='editStudent("${row[0]}")'>✏️</button>
               <button class="btn btn-danger btn-sm" onclick='deleteStudent("${row[0]}")'>🗑️</button>
             </td>
-            <td><img src="${row[10] || 'https://via.placeholder.com/40'}" style="width:40px;height:40px;border-radius:50%;object-fit:cover"></td>
+            <td><img src="${row[10] || 'https://via.placeholder.com/40'}" loading="lazy" style="width:40px;height:40px;border-radius:50%;object-fit:cover"></td>
             <td>${row[0]}</td>
             <td><b>${row[2]}</b><br><small style="color:#64748b">${row[3]}</small></td>
             <td>${row[7]}</td>
