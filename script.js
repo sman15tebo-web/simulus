@@ -1151,86 +1151,133 @@ function doImport() {
 // ==========================================
 // 12. STUDENT VIEW (KELULUSAN)
 // ==========================================
+// --- FUNGSI TAMPILAN DASHBOARD SISWA (ANTI-CRASH) ---
 function renderStudentView(res) {
-    const s = res.data; const set = res.settings;
-    
-    el('s-nama-ins-text').innerText = set.NAMA_INSTANSI;
-    el('s-nama-sek-text').innerText = set.NAMA_SEKOLAH;
-    el('s-nama-sek').innerText = set.NAMA_SEKOLAH;
+    const s = res.data || {}; 
+    const set = res.settings || {};
+
+    el('s-nama-ins-text').innerText = set.NAMA_INSTANSI || 'PEMERINTAH';
+    el('s-nama-sek-text').innerText = set.NAMA_SEKOLAH || 'SEKOLAH';
+    el('s-nama-sek').innerText = set.NAMA_SEKOLAH || 'SEKOLAH';
 
     if(set.LOGO_INSTANSI) { el('s-logo-ins').src = set.LOGO_INSTANSI; el('s-logo-ins').style.display='block'; }
     if(set.LOGO_SEKOLAH) { el('s-logo-sek').src = set.LOGO_SEKOLAH; el('s-logo-sek').style.display='block'; }
 
-    el('res-nama').innerText = s.nama;
-    el('res-nisn').innerText = s.nisn;
-    
+    el('res-nama').innerText = s.nama || '-';
+    el('res-nisn').innerText = s.nisn || '-';
+
     if(s.foto) { el('res-foto').src = s.foto; el('res-foto').style.display='block'; }
-    
-    const target = res.targetTime;
-    if(COUNTDOWN_INTERVAL) clearInterval(COUNTDOWN_INTERVAL);
-    
-    const checkTime = () => {
-        const now = new Date().getTime();
-        const diff = target - now;
-        if(diff > 0) {
-            el('res-content-locked').classList.remove('hidden');
-            el('res-content-open').classList.add('hidden');
-            const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const sec = Math.floor((diff % (1000 * 60)) / 1000);
-            el('res-timer').innerText = `${h}j ${m}m ${sec}d`;
-        } else {
-            clearInterval(COUNTDOWN_INTERVAL);
-            el('res-content-locked').classList.add('hidden');
-            el('res-content-open').classList.remove('hidden');
-            
-            // Render Detail (karena timer sudah habis)
-            el('res-nis').innerText = s.nis || '-';
-            el('res-ttl').innerText = s.ttl || '-';
-            el('res-kelas').innerText = s.kelas || '-';
-            el('res-ortu').innerText = s.ortu || '-';
-            
-            renderStudentResult(res);
-        }
-    };
-    checkTime();
-    COUNTDOWN_INTERVAL = setInterval(checkTime, 1000);
+
+    // LOGIKA ANTI-CRASH: Kita hanya percaya pada putusan Server (res.isOpen), bukan jam HP Siswa!
+    if (res.isOpen === true) {
+        // WAKTU SUDAH BUKA: Tampilkan Hasil
+        el('res-content-locked').classList.add('hidden');
+        el('res-content-open').classList.remove('hidden');
+
+        el('res-nis').innerText = s.nis || '-';
+        el('res-ttl').innerText = s.ttl || '-';
+        el('res-kelas').innerText = s.kelas || '-';
+        el('res-ortu').innerText = s.ortu || '-';
+
+        renderStudentResult(res);
+    } else {
+        // WAKTU BELUM BUKA: Tampilkan Hitung Mundur
+        const target = res.targetTime;
+        if(COUNTDOWN_INTERVAL) clearInterval(COUNTDOWN_INTERVAL);
+
+        const checkTime = () => {
+            const now = new Date().getTime();
+            const diff = target - now;
+            if(diff > 0) {
+                el('res-content-locked').classList.remove('hidden');
+                el('res-content-open').classList.add('hidden');
+                const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const sec = Math.floor((diff % (1000 * 60)) / 1000);
+                el('res-timer').innerText = `${h}j ${m}m ${sec}d`;
+            } else {
+                // Saat jam HP siswa habis, paksa mereka Reload agar server memberikan data nilainya
+                clearInterval(COUNTDOWN_INTERVAL);
+                el('res-timer').innerHTML = `<span style="font-size:1.1rem; color:#b91c1c;">Waktu Tiba!</span><br><button onclick="window.location.reload()" class="btn btn-danger" style="margin-top:10px; font-size:0.9rem; border-radius:20px; box-shadow:0 4px 10px rgba(239, 68, 68, 0.3);">🔄 Cek Hasil Sekarang</button>`;
+            }
+        };
+        checkTime();
+        COUNTDOWN_INTERVAL = setInterval(checkTime, 1000);
+    }
 }
 
+// --- FUNGSI MENGGAMBAR TABEL NILAI SISWA ---
 function renderStudentResult(res) {
-    const s = res.data;
+    const s = res.data || {};
     const grades = res.grades || [];
     const subjects = res.subjects || [];
-    
-    el('res-status').innerText = s.status;
+
+    el('res-status').innerText = s.status || '-';
     el('res-status').className = 'p-status ' + (s.status == 'LULUS' ? 'status-lulus' : 'status-gagal');
     el('res-ucapan').innerText = s.ucapan || (s.status == 'LULUS' ? 'Selamat, Anda Lulus!' : 'Mohon maaf, Anda belum lulus.');
-    
-    // --- FILTER MAPEL UNTUK TAMPILAN SISWA ---
-    const studentClass = String(s.kelas).trim();
+
+    // Filter Mapel sesuai jurusan/kelas siswa
+    const studentClass = String(s.kelas).trim().toUpperCase();
     const filteredSubjects = subjects.filter(sub => {
-        const subClass = sub[4] ? String(sub[4]).trim() : '';
+        const subClass = sub[4] ? String(sub[4]).trim().toUpperCase() : '';
         if(subClass === '') return true;
         return subClass.split(',').map(x=>x.trim()).includes(studentClass);
     });
 
     let sum = 0, count = 0;
+    
+    // MULAI MENGGAMBAR TABEL HTML UNTUK SISWA
+    let tableHTML = `
+    <table style="width:100%; border-collapse: collapse; margin-top: 25px; font-size: 0.85rem; text-align: left; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <thead>
+            <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
+                <th style="padding:12px 15px; font-weight:700; color:#475569;">MATA PELAJARAN</th>
+                <th style="padding:12px 15px; font-weight:700; text-align:center; color:#475569;">NILAI</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+
     filteredSubjects.forEach((sub, i) => {
         const g = grades.find(x => String(x[2]) == String(sub[0]));
         const val = g ? parseFloat(g[3]) : 0;
         sum += val; count++;
+
+        tableHTML += `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:12px 15px; color:#334155;">${sub[1]}</td>
+                <td style="padding:12px 15px; text-align:center; font-weight:700; color:#0f172a;">${val}</td>
+            </tr>
+        `;
     });
 
     const avg = count > 0 ? (sum/count).toFixed(2) : 0;
-    el('res-avg').innerText = avg;
+    el('res-avg').innerText = avg; // Menampilkan Rata-rata di rangkuman atas
 
-    el('res-table-container').innerHTML = ''; 
+    tableHTML += `
+        </tbody>
+        <tfoot>
+            <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
+                <td style="padding:12px 15px; text-align:right; font-weight:700; color:#334155;">JUMLAH</td>
+                <td style="padding:12px 15px; text-align:center; font-weight:800; color:#2563eb; font-size:1rem;">${sum.toFixed(2)}</td>
+            </tr>
+            <tr style="background:#f8fafc;">
+                <td style="padding:12px 15px; text-align:right; font-weight:700; color:#334155;">RATA-RATA</td>
+                <td style="padding:12px 15px; text-align:center; font-weight:800; color:#2563eb; font-size:1rem;">${avg}</td>
+            </tr>
+        </tfoot>
+    </table>
+    `;
 
+    // Tampilkan tabel ke layar HP/Laptop Siswa!
+    el('res-table-container').innerHTML = tableHTML;
+
+    // Tombol Download SKL Manual (jika ada)
     const btnDl = el('btn-download-skl');
     if(s.link_file_skl && s.link_file_skl.length > 10) {
         btnDl.classList.remove('hidden');
         btnDl.onclick = () => window.open(s.link_file_skl, '_blank');
-        btnDl.innerHTML = "📥 DOWNLOAD SKL (PDF)";
+        btnDl.innerHTML = "📥 DOWNLOAD DOKUMEN SKL";
     } else {
         btnDl.classList.add('hidden');
     }
