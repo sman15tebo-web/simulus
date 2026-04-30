@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Sistem Kelulusan Premium</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-material-ui/material-ui.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root { 
+        --primary: #2563eb; --primary-dark: #1e40af; --secondary: #0f172a; 
+        --bg: #f1f5f9; --surface: #ffffff; --text: #334155; --text-light: #64748b;
+        --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+        --radius: 12px;
+        --header-height: 70px;
+    }
+    
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); margin:0; display:flex; flex-direction:column; height:100vh; color: var(--text); overflow:hidden; }
+    .hidden { display: none !important; }
+    
+    /* Scrollbar Halus */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+    .btn { padding: 12px 20px; border:none; border-radius:10px; cursor:pointer; font-weight:700; transition:0.2s; font-size: 0.9rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; z-index: 1; position: relative; white-space: nowrap; }
+    .btn:active { transform: scale(0.96); }
+    .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-outline { border:1px solid #cbd5e1; background:white; color: var(--text); }
+    .btn-sm { padding: 8px 14px; font-size: 0.8rem; border-radius: 8px; }
+    
+    .card { background: var(--surface); border-radius: var(--radius); padding: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; box-sizing: border-box; width: 100%; margin-bottom: 20px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    
+    .form-group { margin-bottom:15px; }
+    .form-label { display:block; margin-bottom:6px; font-weight:600; font-size:0.85rem; color: var(--text-light); }
+    .form-input, .form-select { width:100%; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; box-sizing:border-box; outline:none; transition: 0.2s; font-family: inherit; font-size: 0.95rem; background: #f8fafc; }
+    .form-input:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+    
+    /* PASSWORD TOGGLE */
+    .password-wrap { position: relative; width: 100%; }
+    .password-wrap input { padding-right: 40px; } 
+    .toggle-eye { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #94a3b8; user-select: none; z-index: 10; }
+
+    /* TABLE */
+    .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius); border: 1px solid #e2e8f0; width: 100%; background: white; margin-bottom: 20px; }
+    table { width:100%; border-collapse:collapse; background:white; min-width: 600px; }
+    th, td { padding:14px; border-bottom:1px solid #e2e8f0; text-align:left; font-size:0.9rem; }
+    th { background:#f8fafc; font-weight:700; color:var(--text-light); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
+    
+    .swal2-container { z-index: 999999 !important; }
+    .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding: 10px; background: white; border-radius: 8px; border: 1px solid #e2e8f0; flex-wrap: wrap; gap: 10px; }
+    .page-btn { padding: 6px 12px; border: 1px solid #cbd5e1; background: white; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    
+    /* FLOATING BUTTONS */
+    .fab-container { display: none; position: fixed; bottom: 20px; right: 20px; z-index: 900; flex-direction: column; gap: 10px; }
+    .fab-btn { width: 45px; height: 45px; border-radius: 50%; border: none; background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: 0.3s; opacity: 0; pointer-events: none; transform: translateY(10px); }
+    .fab-btn.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    .fab-btn.refresh { background: var(--success); opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+    /* LOGIN */
+    .login-wrapper { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background: radial-gradient(circle at top left, #3b82f6 0%, #1d4ed8 40%, #0f172a 100%); padding:20px; position: relative; overflow: hidden; z-index: 1; box-sizing: border-box; }
+    .bg-animation { position: absolute; width: 100%; height: 100%; top: 0; left: 0; z-index: -1; pointer-events: none; }
+    .login-card { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); padding: 40px 30px; border-radius: 24px; box-shadow: 0 30px 60px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.1); width: 100%; max-width: 400px; text-align: center; border: 1px solid rgba(255,255,255,0.2); z-index: 100; position: relative; box-sizing: border-box; }
+    .logo-container { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 25px; min-height: 60px; }
+    .logo-img { height: 60px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); }
+
+    /* ADMIN */
+    #admin-layout { display:flex; height:100vh; flex-direction:column; overflow: hidden; width: 100%; }
+    .app-header { display: flex; align-items: center; justify-content: space-between; background: var(--surface); padding: 0 20px; border-bottom: 1px solid #e2e8f0; z-index: 500; flex: 0 0 var(--header-height); height: var(--header-height); width: 100%; box-sizing: border-box; }
+    .header-left { display: flex; align-items: center; gap: 15px; }
+    .admin-body { display:flex; flex:1; overflow:hidden; position:relative; width: 100%; }
+    
+    /* SIDEBAR FIX */
+    .sidebar { 
+        width:260px; background:var(--secondary); color:white; 
+        display:flex; flex-direction:column; padding:20px; 
+        transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index:600; flex: 0 0 260px; overflow-y: auto; height: 100%; 
+    }
+    .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 550; backdrop-filter: blur(2px); }
+    .sidebar-overlay.active { display: block; }
+    .nav-item { padding:12px 15px; cursor:pointer; border-radius:8px; margin-bottom:5px; color:#94a3b8; font-weight: 500; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
+    .nav-item.active, .nav-item:hover { background:rgba(255,255,255,0.1); color:white; }
+    .main { flex:1; padding:30px; overflow-y:auto; background:#f8fafc; padding-bottom: 80px; width: 100%; box-sizing: border-box; scroll-behavior: smooth; }
+    .stat-card { background: white; padding: 20px; border-radius: var(--radius); box-shadow: var(--shadow); display: flex; align-items: center; gap: 15px; border-left: 5px solid var(--primary); width: 100%; box-sizing: border-box; margin-bottom: 0;}
+    .stat-icon { min-width: 50px; width: 50px; height: 50px; background: #eff6ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--primary); }
+    
+    /* STUDENT VIEW HEADER FIX */
+    .student-bg { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; height: auto; display: flex; flex-direction: column; overflow-y: auto; }
+    .student-header { 
+        padding: 15px 30px; 
+        display: flex; 
+        align-items: center; 
+        justify-content: flex-start;
+        gap: 20px; 
+        background: rgba(255,255,255,0.05); 
+        border-bottom: 1px solid rgba(255,255,255,0.1); 
+        flex: 0 0 auto; z-index: 10; 
+        backdrop-filter: blur(10px); 
+    }
+    .logos-wrapper { display: flex; gap: 15px; align-items: center; }
+    .student-header img { height: 50px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.2)); }
+    .student-header-text { text-align: left; }
+    .student-header-text h3 { margin:0; color:rgba(255,255,255,0.7); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; }
+    .student-header-text h1 { margin:0; color:white; font-size:1.2rem; font-weight:800; line-height: 1.2; }
+    
+    .student-body { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 30px 20px; width: 100%; box-sizing: border-box; }
+    .premium-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 24px; width: 100%; max-width: 500px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); position: relative; border: 1px solid rgba(255,255,255,0.2); overflow: visible; margin-bottom: 20px; }
+    .p-head { background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%); padding: 30px 20px 60px; text-align: center; color: white; border-radius: 24px 24px 0 0; }
+    .p-avatar { width: 120px; height: 120px; border-radius: 50%; border: 5px solid white; object-fit: cover; box-shadow: 0 10px 25px rgba(0,0,0,0.15); margin-top: -60px; background: white; position: relative; z-index: 2; }
+    .p-content { padding: 10px 25px 30px; text-align: center; }
+    .data-list { text-align: left; margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .data-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; flex-wrap: wrap; gap: 5px; }
+    .data-label { color: var(--text-light); font-size: 0.9rem; font-weight: 500; }
+    .data-val { color: var(--text); font-weight: 700; font-size: 0.95rem; text-align: right; }
+    .app-footer { text-align: center; padding: 20px; font-size: 0.8rem; color: #94a3b8; width: 100%; box-sizing: border-box; flex: 0 0 auto; z-index: 100; position: relative; }
+    
+    .modal-overlay { display:none !important; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:2000; justify-content:center; align-items:center; backdrop-filter: blur(4px); padding: 20px; }
+    .modal-overlay.active { display:flex !important; }
+    .modal-box { background:white; padding:25px; border-radius:16px; width:100%; max-width:600px; max-height:90vh; overflow-y:auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); animation: slideUp 0.3s ease-out; box-sizing: border-box; }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .close { float: right; font-size: 24px; cursor: pointer; color: #94a3b8; }
+    
+    #loader { position:fixed; inset:0; background:rgba(255,255,255,0.7); backdrop-filter: blur(5px); z-index:99999; display:none; flex-direction:column; justify-content:center; align-items:center; transition: 0.3s; }
+    #loader.active { display:flex !important; }
+    .spinner { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s ease-in-out infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .menu-toggle { display: none; font-size: 24px; cursor: pointer; padding: 5px; }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+        .grid-2, .grid-3 { grid-template-columns: 1fr; gap: 15px; }
+        
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; z-index: 800; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .admin-body { margin-top: var(--header-height); }
+        .main { padding: 20px 15px; padding-bottom: 100px; }
+        
+        /* SIDEBAR FIXED & HIDDEN PERFECTLY */
+        .sidebar { 
+            position: fixed; top: 0; bottom: 0; 
+            left: -300px; 
+            z-index: 1000; 
+            box-shadow: none; 
+        }
+        .sidebar.show { 
+            left: 0; 
+            box-shadow: 5px 0 15px rgba(0,0,0,0.1); 
+        }
+        
+        .menu-toggle { display: block; }
+        .header-left h3 { display: none; } 
+        .header-left span { font-size: 0.8rem; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .fab-container { display: flex; }
+        .card { padding: 5px 5px; margin-bottom: 0px; }
+        .stat-card { padding: 10px; margin-bottom: 0; }
+        .modal-box { width: 95%; max-height: 96vh; padding: 5px; }
+        
+        /* HEADER SISWA DI HP */
+        .student-header { flex-direction: column; justify-content: center; text-align: center; gap: 10px; }
+        .logos-wrapper { margin-bottom: 5px; }
+        .student-header-text { text-align: center; }
+
+        .btn { width: 100%; margin-bottom: 5px; }
+        .btn-sm { width: auto; margin-bottom: 0; }
+        
+        .table-container { width: 100vw; margin-left: -15px; padding-left: 15px; padding-right: 15px; border-radius: 0; border-left: none; border-right: none; box-sizing: border-box; }
+        
+        #page-students .card div[style*="display:flex"] { flex-direction: column; }
+        #page-students .card div[style*="display:flex"] > div { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loader">
+    <div class="spinner"></div>
+    <p style="margin-top:15px; font-weight:600; color:var(--text); font-size:0.9rem; letter-spacing:0.5px;">Memproses Data...</p>
+  </div>
+  
+  <div class="fab-container">
+      <button class="fab-btn refresh" onclick="loadAllData()" title="Refresh Data">🔄</button>
+      <button id="btn-scroll-top" class="fab-btn" onclick="scrollToTop()" title="Ke Atas">⬆️</button>
+  </div>
+
+  <div id="login-view" class="login-wrapper">
+    <div class="bg-animation"></div> <div class="login-card">
+       <div class="logo-container">
+          <img id="l-logo-ins" class="logo-img" src="https://via.placeholder.com/70?text=LOGO" style="display:none">
+          <img id="l-logo-sek" class="logo-img" src="https://via.placeholder.com/70?text=SEKOLAH" style="display:none">
+       </div>
+       <h4 id="l-nama-ins" style="margin:0; color:rgba(255,255,255,0.7); text-transform: uppercase; font-size:0.8rem; letter-spacing:1px;">SELAMAT DATANG</h4>
+       <h2 id="l-nama-sek" style="margin:5px 0 25px 0; color:white; font-weight:800; line-height:1.2; text-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 1.5rem;">SISTEM KELULUSAN</h2>
+
+       <div>
+          <img class="logo-img2" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgzWqHtSdFJjVHNn7AL8qpoNrjjXhWfJywsJRfzxLJ_AZPoN2gObOj7MbCsTGIG70JaEI5z9YAStL-JGdmeFJUj5Jd1txx_LiGFr2X59RMqDE4PZHfX85mfcbFxXX9Alf2r_z__XSGF0dQMVqtGE1XhDbUc6b2f68m74bzR0Rp9hhZn57C3-U1BM-nJzL1y/s250/logo%20simulus%20v3.png">
+       </div>
+
+       <div style="text-align:left;">
+         <div class="form-group">
+            <label class="form-label" style="color: rgba(255,255,255,0.9);">NISN / Username</label>
+            <input id="log-u" class="form-input" style="background: rgba(255,255,255,0.9); border:none;" placeholder="NISN (10 digit)">
+         </div>
+         <div class="form-group">
+            <label class="form-label" style="color: rgba(255,255,255,0.9);">Password</label>
+            <div class="password-wrap">
+                <input type="password" id="log-p" class="form-input" style="background: rgba(255,255,255,0.9); border:none;" placeholder="********">
+                <span class="toggle-eye" onclick="togglePass('log-p', this)">👁️</span>
+            </div>
+         </div>
+       </div>
+       
+       <button type="button" class="btn btn-primary" style="width:100%; padding:14px; margin-top:10px; font-size:1rem; background: white; color: var(--primary);" onclick="doLogin()">CEK KELULUSAN</button>
+       
+       <span onclick="forgotPass()" style="display:block; margin-top:20px; color:rgba(255,255,255,0.8); font-size:0.9rem; text-decoration:none; cursor:pointer;">Lupa Password?</span>
+    </div>
+    <div class="app-footer" style="background:transparent; color:rgba(255,255,255,0.4); margin-top: 20px; border:none;">
+       © 2026 Sistem Informasi Pengumuman Kelulusan Siswa. All Right Reserved. <br>
+          <a onclick="openPrivacy()" style="cursor:pointer; text-decoration:underline;">Kebijakan Privasi</a> | Created by : <a href='https://www.fary-edtech.my.id' target="_blank" style="color:grey">Fary EdTech</a>
+    </div>
+  </div>
+
+  <div id="admin-layout" class="hidden">
+     <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+     <div class="app-header">
+       <div class="header-left">
+         <div class="menu-toggle" onclick="toggleSidebar()">☰</div>
+         <img id="h-logo-sek" src="" style="height:35px;">
+         <div>
+            <h3 style="margin:0; font-size:1rem; color:var(--text);">Panel Admin</h3>
+            <span style="font-size:0.75rem; color:var(--text-light); display:block;" id="h-nama-sek">Sekolah</span>
+         </div>
+       </div>
+       <button class="btn btn-danger btn-sm" onclick="doLogout()">Keluar</button>
+     </div>
+     
+    <div class="admin-body">
+      <div class="sidebar">
+        <div class="nav-item active" onclick="nav('dashboard')">📊 Dashboard</div>
+        <div class="nav-item" onclick="nav('students')">🎓 Data Siswa</div>
+        <div class="nav-item" onclick="nav('subjects')">📚 Data Mapel</div>
+        <div class="nav-item" onclick="nav('grades')">📝 Input Nilai</div>
+        <div class="nav-item" onclick="nav('skl')">🖨️ Cetak SKL</div>
+        <div class="nav-item" onclick="nav('settings')">⚙️ Pengaturan</div>
+      </div>
+      
+      <div class="main" id="main-content">
+        <div id="page-dashboard">
+           <h2 style="margin-top:0;">Ringkasan Data</h2>
+           <div class="grid-3" style="margin-bottom:20px;">
+              <div class="stat-card">
+                 <div class="stat-icon">👥</div>
+                 <div class="stat-info"><p>Total Siswa</p><h3 id="dash-total">0</h3></div>
+              </div>
+              <div class="stat-card" style="border-color:var(--success);">
+                 <div class="stat-icon" style="color:var(--success); background:#f0fdf4;">🎓</div>
+                 <div class="stat-info"><p>Lulus</p><h3 id="dash-lulus">0</h3></div>
+              </div>
+              <div class="stat-card" style="border-color:var(--danger);">
+                 <div class="stat-icon" style="color:var(--danger); background:#fef2f2;">⚠️</div>
+                 <div class="stat-info"><p>Tidak Lulus</p><h3 id="dash-gagal">0</h3></div>
+              </div>
+           </div>
+           
+           <div class="grid-2">
+              <div class="card">
+                 <h4 style="margin-top:0;">Statistik Kelulusan</h4>
+                 <div style="position: relative; height: 250px;">
+                    <canvas id="chartLulus"></canvas>
+                 </div>
+              </div>
+              <div class="card">
+                 <h4 style="margin-top:0;">Sebaran Gender</h4>
+                 <div style="position: relative; height: 250px;">
+                    <canvas id="chartGender"></canvas>
+                 </div>
+              </div>
+           </div>
+        </div>
+        
+        <div id="page-students" class="hidden">
+           <div style="display:flex; justify-content:space-between; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+               <h2 style="margin:0;">Data Siswa</h2>
+               <div style="display:flex; gap:5px; width: 100%; justify-content: flex-end;">
+                   <button class="btn btn-success btn-sm" onclick="openImport('students')">Import</button> 
+                   <button class="btn btn-primary btn-sm" onclick="openStudentModal()">+ Siswa</button>
+               </div>
+           </div>
+           
+           <div class="card" style="margin-bottom:15px; padding:15px; height:auto;">
+               <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                   <div style="flex: 1 1 200px;"><input id="s-search-nama" class="form-input" placeholder="Cari Nama Siswa..." onkeyup="renderStudents()"></div>
+                   <div style="flex: 1 1 150px;"><select id="s-search-status" class="form-select" onchange="renderStudents()"><option value="">Semua Status</option><option value="LULUS">LULUS</option><option value="TIDAK LULUS">TIDAK LULUS</option></select></div>
+                   <div style="flex: 1 1 100px;"><input id="s-search-tahun" class="form-input" placeholder="Tahun Lulus" onkeyup="renderStudents()"></div>
+               </div>
+           </div>
+
+           <div class="table-container"><table id="tbl-students"><thead><tr><th>Aksi</th><th>Foto</th><th>NISN</th><th>Nama</th><th>Kelas</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+
+            <div style="margin-top: 15px; padding: 15px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <h4 style="margin:0; color: #92400e;">Reset Password Siswa</h4>
+                <small style="color: #b45309;">Kembalikan sandi siswa ke standar (123456)</small>
+              </div>
+              <button class="btn btn-warning" onclick="resetManual()" style="box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);">
+                <span>🔄</span> Mulai Reset
+              </button>
+            </div>
+           <div class="pagination">
+               <button class="page-btn" onclick="changePage(-1)">Sebelumnya</button>
+               <span id="page-info" class="page-info">Halaman 1</span>
+               <button class="page-btn" onclick="changePage(1)">Selanjutnya</button>
+           </div>
+        </div>
+        
+        <div id="page-subjects" class="hidden">
+           <div style="display:flex; justify-content:space-between; margin-bottom:15px; align-items: center;"><h2>Data Mapel</h2><div style="display:flex; gap:5px;"><button class="btn btn-success btn-sm" onclick="openImport('subjects')">Import</button> <button class="btn btn-primary btn-sm" onclick="openMapelModal()">+ Mapel</button></div></div>
+           <div class="table-container"><table id="tbl-subjects"><thead><tr><th>Aksi</th><th>ID</th><th>Mapel</th><th>KKM</th><th>Kategori</th></tr></thead><tbody></tbody></table></div>
+        </div>
+
+        <div id="page-grades" class="hidden">
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px; align-items: center;"><h2>Input Nilai</h2><button class="btn btn-success btn-sm" onclick="openImport('grades')">Import Nilai</button></div>
+            <div class="card">
+              <div class="form-group"><label class="form-label">Pilih Siswa</label><select id="grade-sel-siswa" class="form-select" onchange="loadGradesView(this.value)"><option value="">-- Pilih Siswa --</option></select></div>
+              <div id="grade-container" class="hidden"><h3 id="grade-student-name" style="margin-top:0"></h3><div class="table-container"><table id="tbl-grades-input"><thead><tr><th>Mapel</th><th>Pengetahuan</th><th>Keterampilan</th><th>Sikap</th></tr></thead><tbody></tbody><tfoot><tr><td style="text-align:right">TOTAL</td><td id="calc-sum-p">0</td><td id="calc-sum-k">0</td><td>-</td></tr><tr><td style="text-align:right">RATA-RATA</td><td id="calc-avg-p">0</td><td id="calc-avg-k">0</td><td>-</td></tr></tfoot></table></div><button class="btn btn-primary" style="margin-top:15px; width:100%;" onclick="saveGrades()">Simpan Nilai</button></div>
+            </div>
+        </div>
+        
+        <div id="page-skl" class="hidden">
+             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;"><h2>Generator SKL</h2></div>
+             <div class="card">
+               
+               <div class="form-group" style="background:#f0fdf4; padding:15px; border:1px solid #bbf7d0; border-radius:8px; position: relative;">
+                  <label class="form-label" style="color:#166534;">CARI & PILIH SISWA:</label>
+                  <input type="text" id="skl-search-input" class="form-input" autocomplete="off" placeholder="Ketik Nama atau NISN..." oninput="liveSearchSkl()" style="border-color: #10b981; background: white; margin-bottom:0;">
+                  <div id="skl-search-results" style="display:none; position: absolute; top: 100%; left: 15px; right: 15px; background: white; border: 1px solid #cbd5e1; border-radius: 0 0 10px 10px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index: 999; max-height: 200px; overflow-y: auto;"></div>
+                  <input type="hidden" id="skl-siswa">
+               </div>
+
+               <div class="grid-2"><div class="form-group"><label class="form-label">Nomor Surat</label><input id="skl-no" class="form-input"></div><div class="form-group"><label class="form-label">Tempat Surat</label><input id="skl-tempat" class="form-input"></div><div class="form-group"><label class="form-label">Tgl Surat</label><input id="skl-tgl" class="form-input"></div><div class="form-group"><label class="form-label">Dasar 1</label><input id="skl-d1" class="form-input"></div><div class="form-group"><label class="form-label">Dasar 2</label><input id="skl-d2" class="form-input"></div><div class="form-group"><label class="form-label">Nama Kepsek</label><input id="skl-kepsek" class="form-input"></div><div class="form-group"><label class="form-label">NIP Kepsek</label><input id="skl-nip" class="form-input"></div><div class="form-group"><label class="form-label">Pangkat</label><input id="skl-pangkat" class="form-input"></div><div class="form-group"><label class="form-label">Tembusan (Manual)</label><input id="skl-cc" class="form-input"></div></div>
+               <div style="display:flex; gap:10px; margin-top:20px; flex-wrap:wrap;">
+                   <button class="btn btn-outline" style="flex:1;" onclick="saveSKLSettingsJS()">Simpan Pengaturan</button>
+                   <button class="btn btn-success" style="flex:1;" onclick="generateSKL()">CETAK DOC</button>
+                   <button class="btn btn-danger" style="flex:1;" onclick="generatePDF()">CETAK PDF</button>
+               </div>
+             </div>
+        </div>
+
+        <div id="page-settings" class="hidden">
+          <h2 style="margin-bottom:20px;">Pengaturan Sistem</h2>
+          <form onsubmit="saveSettings(event)">
+          <div class="grid-2">
+             <div class="card">
+                <h3 style="margin-top:0; color:var(--primary); border-bottom:1px solid #eee; padding-bottom:10px;">Identitas Instansi</h3>
+                <div class="form-group"><label class="form-label">Nama Instansi</label><input id="set-instansi" class="form-input"></div>
+                <div class="form-group"><label class="form-label">Nama Dinas (OPD)</label><input id="set-dinas" class="form-input"></div>
+                <div class="form-group"><label class="form-label">Nama Sekolah</label><input id="set-sekolah" class="form-input"></div>
+                <div class="form-group"><label class="form-label">Website Sekolah</label><input id="set-web" class="form-input"></div>
+                <div class="form-group"><label class="form-label">Nomor HP / Kontak</label><input id="set-hp" class="form-input"></div>
+                <div class="form-group"><label class="form-label">Alamat</label><input id="set-alamat" class="form-input"></div>
+                <div class="form-group"><label class="form-label">Logo Sekolah</label><div style="display:flex; gap:5px;"><input id="set-logo-sek" class="form-input"><button type="button" class="btn btn-outline" onclick="cropImg('logo', 'set-logo-sek')">Up</button></div></div>
+                <div class="form-group"><label class="form-label">Logo Instansi</label><div style="display:flex; gap:5px;"><input id="set-logo-ins" class="form-input"><button type="button" class="btn btn-outline" onclick="cropImg('logo', 'set-logo-ins')">Up</button></div></div>
+             </div>
+             
+             <div class="card">
+                <h3 style="margin-top:0; color:var(--primary); border-bottom:1px solid #eee; padding-bottom:10px;">Konfigurasi Teknis</h3>
+                <div class="form-group" style="background:#fff7ed; padding:10px; border-radius:8px; border:1px solid #ffedd5;"><label class="form-label" style="color:#c2410c;">ID TEMPLATE DOCS (Drive ID)</label><input id="set-template-id" class="form-input"></div>
+                <div class="form-group"><label class="form-label">Folder SKL ID</label><input id="set-folder-skl" class="form-input"></div>
+                <div class="form-group"><label class="form-label">Folder Foto ID</label><input id="set-folder-foto" class="form-input"></div>
+                <hr style="border:0; border-top:1px dashed #ddd; margin:15px 0;">
+                <div class="form-group"><label class="form-label">Admin User</label><input id="set-user" class="form-input"></div>
+                <div class="form-group">
+                    <label class="form-label">Admin Pass</label>
+                    <div class="password-wrap">
+                        <input type="password" id="set-pass" class="form-input">
+                        <span class="toggle-eye" onclick="togglePass('set-pass', this)">👁️</span>
+                    </div>
+                </div>
+                <div class="form-group"><label class="form-label">Waktu Pengumuman</label><input type="datetime-local" id="set-waktu" class="form-input"></div>
+                <button class="btn btn-primary" style="width:100%; margin-top:15px;">SIMPAN PERUBAHAN</button>
+             </div>
+          </div>
+          </form>
+        </div>
+
+      </div> 
+    </div>
+    <div class="app-footer">© 2026 Sistem Informasi Pengumuman Kelulusan Siswa. All Right Reserved. <br>
+          <a onclick="openPrivacy()" style="cursor:pointer; text-decoration:underline;">Kebijakan Privasi</a> | Created by : <a href='https://www.fary-edtech.my.id' target="_blank" style="color:grey">Fary EdTech</a></div>
+  </div>
+
+  <div id="student-view-layout" class="hidden student-bg">
+      <div class="student-header">
+          <div class="logos-wrapper">
+             <img id="s-logo-ins" src="" style="display:none">
+             <img id="s-logo-sek" src="" style="display:none">
+          </div>
+          <div class="student-header-text">
+             <h3 id="s-nama-ins-text">PEMERINTAH</h3>
+             <h1 id="s-nama-sek-text">NAMA SEKOLAH</h1>
+          </div>
+      </div>
+
+      <div class="student-body">
+          <div class="premium-card">
+              <div class="p-head">
+                  <h2 style="margin:0; text-transform:uppercase; font-size:1.1rem; letter-spacing:1px; opacity:0.9;">Pengumuman</h2>
+                  <h1 id="s-nama-sek" style="margin:5px 0 0 0; font-size:1.3rem; font-weight:800;">SEKOLAH</h1>
+              </div>
+              
+              <div style="text-align:center;">
+                  <img id="res-foto" class="p-avatar" src="https://via.placeholder.com/150" style="display:none">
+              </div>
+              
+              <div class="p-content">
+                  <h2 id="res-nama" style="margin:10px 0 5px; color:#1e293b; font-size: 1.2rem;">Nama Siswa</h2>
+                  <p id="res-nisn" style="margin:0; color:#64748b; font-weight:600;">NISN</p>
+                  
+                  <div id="res-content-locked" class="hidden" style="margin-top:25px;">
+                       <div style="background:#fef2f2; padding:20px; border-radius:15px; color:#b91c1c; border:1px solid #fecaca;">
+                           <h3 style="margin:0; font-size:0.9rem;">PENGUMUMAN DIBUKA DALAM</h3>
+                           <h1 id="res-timer" style="margin:10px 0; font-size:2rem; font-variant-numeric: tabular-nums;">--:--:--</h1>
+                       </div>
+                  </div>
+
+                  <div id="res-content-open" class="hidden">
+                      <div id="res-status" class="p-status">LULUS</div>
+                      <p id="res-ucapan" style="font-style:italic; color:#64748b; margin-bottom:20px; font-size: 0.9rem;">Selamat!</p>
+                      
+                      <div class="data-list">
+                          <div class="data-row"><span class="data-label">NIS</span><span class="data-val" id="res-nis">-</span></div>
+                          <div class="data-row"><span class="data-label">TTL</span><span class="data-val" id="res-ttl">-</span></div>
+                          <div class="data-row"><span class="data-label">Kelas</span><span class="data-val" id="res-kelas">-</span></div>
+                          <div class="data-row"><span class="data-label">Wali/Ortu</span><span class="data-val" id="res-ortu">-</span></div>
+                          <div class="data-row"><span class="data-label">Nilai Rata-rata</span><span class="data-val" id="res-avg">-</span></div>
+                      </div>
+                      
+                      <div id="res-table-container"></div> <button id="btn-download-skl" class="btn btn-primary hidden" style="width:100%; margin-top:25px; padding:15px; border-radius:50px;">
+                        📥 DOWNLOAD SKL (PDF)
+                      </button>
+                  </div>
+                  
+                  <div style="margin-top:30px; display:flex; gap:10px;">
+                     <button class="btn btn-outline" style="flex:1; border-radius:50px;" onclick="openChangePass()">Ubah Sandi</button>
+                     <button class="btn btn-danger" style="flex:1; border-radius:50px;" onclick="doLogout()">Keluar</button>
+                  </div>
+              </div>
+          </div>
+      </div>
+      
+      <div class="app-footer student-footer">
+          © 2026 Sistem Informasi Pengumuman Kelulusan Siswa. All Right Reserved. <br>
+          <a onclick="openPrivacy()" style="cursor:pointer; text-decoration:underline;">Kebijakan Privasi</a> | Created by : <a href='https://www.fary-edtech.my.id' target="_blank" style="color:grey">Fary EdTech</a>
+      </div>
+  </div>
+
+  <div id="modal-pass" class="modal-overlay"><div class="modal-box"><span onclick="closeModal('modal-pass')" class="close">×</span><h3>Ubah Kata Sandi</h3><form onsubmit="handleChangePass(event)"><div class="form-group"><label class="form-label">Password Lama</label><div class="password-wrap"><input type="password" id="pass-old" class="form-input" required><span class="toggle-eye" onclick="togglePass('pass-old', this)">👁️</span></div></div><div class="form-group"><label class="form-label">Password Baru</label><div class="password-wrap"><input type="password" id="pass-new" class="form-input" required><span class="toggle-eye" onclick="togglePass('pass-new', this)">👁️</span></div></div><button class="btn btn-primary" style="width:100%;">Simpan Perubahan</button></form></div></div>
+
+  <div id="modal-student" class="modal-overlay"><div class="modal-box"><h3>Data Siswa</h3><form onsubmit="handleSaveStudent(event)"><div class="grid-2"><div class="form-group"><label class="form-label">NISN</label><input id="m-nisn" class="form-input" required></div><div class="form-group"><label class="form-label">Password</label><div class="password-wrap"><input id="m-pass" class="form-input" required><span class="toggle-eye" onclick="togglePass('m-pass', this)">👁️</span></div></div><div class="form-group"><label class="form-label">Nama</label><input id="m-nama" class="form-input" required></div><div class="form-group"><label class="form-label">NIS</label><input id="m-nis" class="form-input"></div><div class="form-group"><label class="form-label">Tmp Lahir</label><input id="m-tmp" class="form-input"></div><div class="form-group"><label class="form-label">Tgl Lahir</label><input type="date" id="m-tgl" class="form-input"></div><div class="form-group"><label class="form-label">Jenis Kelamin</label><select id="m-jk" class="form-select"><option value="L">Laki-laki</option><option value="P">Perempuan</option></select></div><div class="form-group"><label class="form-label">Tahun Lulus</label><input id="m-thn" class="form-input" placeholder="2024"></div><div class="form-group"><label class="form-label">Ortu</label><input id="m-ortu" class="form-input"></div><div class="form-group"><label class="form-label">Status</label><select id="m-status" class="form-select"><option value="LULUS">LULUS</option><option value="TIDAK LULUS">TIDAK LULUS</option></select></div></div><div class="form-group"><label class="form-label">Foto Siswa</label><div style="display:flex; gap:5px;"><input id="m-foto" class="form-input"><button type="button" class="btn btn-outline" onclick="cropImg('student', 'm-foto')">Upload</button></div><img id="m-preview" style="height:80px; display:none; margin-top:5px; border-radius:8px;"></div><div class="form-group"><label class="form-label">Ucapan</label><input id="m-ucapan" class="form-input"></div><div class="form-group" style="background:#fee2e2; padding:10px; border-radius:6px; border:1px solid #f87171;"><label class="form-label">Upload File SKL (Scan/PDF - Max 400Kb)</label><input type="file" id="m-file-skl-input" accept=".pdf,.jpg,.jpeg,.png"><input id="m-file-skl" type="hidden"><small id="m-file-status" style="display:block;margin-top:5px;font-weight:bold; color:#b91c1c"></small></div><div style="display:flex; justify-content:flex-end; gap:10px;"><button type="button" class="btn btn-danger" onclick="closeModal('modal-student')">Batal</button><button class="btn btn-primary">Simpan</button></div></form></div></div>
+
+  <div id="modal-mapel" class="modal-overlay"><div class="modal-box"><h3>Data Mapel</h3><form onsubmit="handleSaveMapel(event)"><div class="form-group"><label class="form-label">ID</label><input id="mp-id" class="form-input" required></div><div class="form-group"><label class="form-label">Mapel</label><input id="mp-nama" class="form-input" required></div><div class="form-group"><label class="form-label">KKM</label><input id="mp-kkm" class="form-input"></div><div class="form-group"><label class="form-label">Kategori</label><select id="mp-cat" class="form-select"><option value="Umum">Umum</option><option value="Peminatan">Peminatan</option></select></div><button type="button" class="btn btn-danger" onclick="closeModal('modal-mapel')">Batal</button> <button class="btn btn-primary">Simpan</button></form></div></div>
+
+  <div id="modal-crop" class="modal-overlay"><div class="modal-box"><h3>Crop Gambar</h3><input type="file" id="file-input" accept="image/*"><div style="height:300px; background:#eee; margin:10px 0;"><img id="crop-img" style="max-height:100%;"></div><button class="btn btn-primary" onclick="doCrop()">Upload</button> <button class="btn btn-danger" onclick="closeModal('modal-crop')">Batal</button></div></div>
+
+  <div id="modal-import" class="modal-overlay"><div class="modal-box"><h3>Import Excel</h3><button class="btn btn-outline" onclick="downloadTemplate()">Download Template CSV</button><hr><input type="file" id="import-file" class="form-input"><br><button class="btn btn-primary" onclick="doImport()">Proses Import</button> <button class="btn btn-danger" onclick="closeModal('modal-import')">Tutup</button></div></div>
+
+  <div id="modal-review" class="modal-overlay">
+  <div class="modal-box" style="max-width:700px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:20px;">
+         <h3 style="margin:0">Review Data Siswa</h3>
+         <span onclick="closeModal('modal-review')" class="close" style="position:static;">×</span>
+      </div>
+      <div class="grid-2">
+         <div style="text-align:center;">
+            <img id="rv-foto" src="" style="width:100%; max-width:150px; border-radius:12px; border:4px solid #fff; box-shadow:0 4px 6px rgba(0,0,0,0.1); min-height:180px; object-fit:cover; background:#f1f5f9;">
+            <div id="rv-status" class="p-status" style="font-size:0.8rem; margin-top:15px; padding:5px 15px;">-</div>
+         </div>
+         <div>
+            <table style="width:100%; border:none; box-shadow:none;">
+              <tr><td style="width:100px; color:var(--text-light); font-weight:600;">Nama</td><td id="rv-nama" style="font-weight:700;">-</td></tr>
+              <tr><td style="color:var(--text-light); font-weight:600;">NISN</td><td id="rv-nisn">-</td></tr>
+              <tr><td style="color:var(--text-light); font-weight:600;">NIS</td><td id="rv-nis">-</td></tr>
+              <tr><td style="color:var(--text-light); font-weight:600;">TTL</td><td id="rv-ttl">-</td></tr>
+              <tr><td style="color:var(--text-light); font-weight:600;">Kelas</td><td id="rv-kelas">-</td></tr>
+              <tr><td style="color:var(--text-light); font-weight:600;">Ortu</td><td id="rv-ortu">-</td></tr>
+              <tr><td style="color:var(--text-light); font-weight:600;">Password</td><td id="rv-pass" style="font-family:monospace; background:#f1f5f9; padding:2px 5px; border-radius:4px;">-</td></tr>
+            </table>
+            <div style="margin-top:20px;">
+               <p style="font-weight:bold; margin-bottom:5px; font-size:0.9rem;">Dokumen SKL:</p>
+               <div style="display:flex; gap:10px;">
+                  <a id="rv-link-doc" href="#" target="_blank" class="btn btn-primary btn-sm hidden">📄 Doc</a>
+                  <a id="rv-link-file" href="#" target="_blank" class="btn btn-outline btn-sm hidden">📂 File</a>
+                  <span id="rv-no-doc" style="color:#94a3b8; font-style:italic; font-size:0.9rem;">Belum ada dokumen</span>
+               </div>
+            </div>
+         </div>
+      </div>
+      <div style="margin-top:20px; text-align:right; border-top:1px solid #eee; padding-top:15px;">
+         <button class="btn btn-outline" onclick="closeModal('modal-review')">Tutup</button>
+      </div>
+  </div>
+  </div>
+  
+  <div id="modal-privacy" class="modal-overlay">
+      <div class="modal-box" style="max-width:600px;">
+          <span onclick="closeModal('modal-privacy')" class="close">×</span>
+          <h3>Kebijakan Privasi</h3>
+          <div style="font-size:0.9rem; line-height:1.6; color:#334155; text-align:justify;">
+              <p>Terima kasih telah menggunakan Aplikasi Sistem Pengumuman Kelulusan Siswa (SiMuLuS). Kami menghargai privasi Anda dan berkomitmen untuk melindungi data pribadi Anda.</p>
+              <strong>1. Pengumpulan Data</strong>
+              <p>Kami mengumpulkan data siswa seperti Nama, NISN, Nilai, dan Status Kelulusan semata-mata untuk keperluan administrasi sekolah dan pengumuman kelulusan.</p>
+              <strong>2. Penggunaan Data</strong>
+              <p>Data yang dikumpulkan hanya digunakan di lingkungan internal sekolah dan tidak akan dibagikan kepada pihak ketiga tanpa izin, kecuali diwajibkan oleh hukum.</p>
+              <strong>3. Keamanan</strong>
+              <p>Kami menerapkan langkah-langkah keamanan teknis untuk melindungi data Anda dari akses yang tidak sah.</p>
+              <br>
+              <small>Terakhir diperbarui: Februari 2026</small>
+          </div>
+          <div style="text-align:right; margin-top:15px;"><button class="btn btn-primary" onclick="closeModal('modal-privacy')">Saya Mengerti</button></div>
+      </div>
+  </div>
+
+  <script src="script.js"></script>
+
+</body>
+</html>
