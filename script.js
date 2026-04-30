@@ -162,7 +162,8 @@ async function doLogin() {
     
     if(res.status === 'success') {
         CURRENT_USER = res;
-        localStorage.setItem('userData', JSON.stringify(res));
+        CURRENT_USER.password_used = p;
+        localStorage.setItem('userData', JSON.stringify(CURRENT_USER));
         el('login-view').classList.add('hidden');
         
         if(res.role === 'admin') {
@@ -226,18 +227,27 @@ function doLogout() {
 // 6. ADMIN DASHBOARD & CORE
 // ==========================================
 function nav(page) {
+    // 1. Atur sorotan (active) pada Sidebar Desktop
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    event.target.classList.add('active');
+    if(event && event.target && event.target.classList.contains('nav-item')) {
+        event.target.classList.add('active');
+    }
+
+    // 2. Atur sorotan (active) pada Bottom Nav Mobile
+    document.querySelectorAll('.b-nav-item').forEach(n => n.classList.remove('active'));
+    const bNavItem = document.querySelector(`.b-nav-item[data-target="${page}"]`);
+    if(bNavItem) bNavItem.classList.add('active');
+
+    // 3. Pindah Halaman
     ['dashboard','students','subjects','grades','skl','settings'].forEach(p => el('page-'+p).classList.add('hidden'));
     el('page-'+page).classList.remove('hidden');
     
+    // 4. Jalankan fungsi tambahan jika diperlukan
     if(page === 'grades') populateStudentSelects();
     if(page === 'skl') populateSklClassFilter(); 
     if(page === 'dashboard') renderDashboardCharts(); 
-    if(window.innerWidth <= 768) { 
-        toggleSidebar(); 
-        scrollToTop(); 
-    }
+    
+    scrollToTop(); 
 }
 
 async function loadAllData() {
@@ -401,7 +411,8 @@ function renderStudents() {
             </td>
             <td><img src="${row[10] || 'https://via.placeholder.com/40'}" loading="lazy" style="width:40px;height:40px;border-radius:50%;object-fit:cover"></td>
             <td>${row[0]}</td>
-            <td><b>${row[2]}</b><br><small style="color:#64748b">${row[3]}</small></td>
+            <!-- PERBAIKAN: Nama dibatasi max 150px (25 huruf) dan 2 baris -->
+            <td><div style="max-width: 150px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"><b>${row[2]}</b><br><small style="color:#64748b">${row[3]}</small></div></td>
             <td>${row[7]}</td>
             <td><span class="${row[8]=='LULUS'?'status-lulus':'status-gagal'}" style="padding:4px 10px; border-radius:20px; font-size:0.7rem; font-weight:700;">${row[8]}</span></td>
           `;
@@ -672,7 +683,13 @@ function loadGradesView(nisn) {
     filteredSubjects.forEach(sub => {
        const g = existingGrades.find(x => String(x[2]) == String(sub[0]));
        const tr = document.createElement('tr');
-       tr.innerHTML = `<td>${sub[1]}</td><td><input type="number" class="form-input grade-p" data-id="${sub[0]}" value="${g ? g[3] : 0}" onkeyup="validateGrade(this)" onchange="validateGrade(this); calcGrades()"></td><td><input type="number" class="form-input grade-k" value="${g ? g[4] : 0}" onkeyup="validateGrade(this)" onchange="validateGrade(this); calcGrades()"></td><td><input type="text" class="form-input grade-s" value="${g ? g[5] : 'B'}"></td>`;
+       // PERBAIKAN: Menambahkan 'data-label' agar di HP muncul tulisan Pengetahuan/Keterampilan
+       tr.innerHTML = `
+           <td>${sub[1]}</td>
+           <td data-label="Pengetahuan"><input type="number" class="form-input grade-p" data-id="${sub[0]}" value="${g ? g[3] : 0}" onkeyup="validateGrade(this)" onchange="validateGrade(this); calcGrades()"></td>
+           <td data-label="Keterampilan"><input type="number" class="form-input grade-k" value="${g ? g[4] : 0}" onkeyup="validateGrade(this)" onchange="validateGrade(this); calcGrades()"></td>
+           <td data-label="Sikap"><input type="text" class="form-input grade-s" value="${g ? g[5] : 'B'}"></td>
+       `;
        tbody.appendChild(tr);
     });
     el('grade-container').classList.remove('hidden');
@@ -1139,9 +1156,9 @@ function renderStudentView(res) {
 
             renderStudentResult(res);
         } 
+        
         // JIKA PENGUMUMAN BELUM WAKTUNYA (GEMBOK MUNDUR)
         else {
-            // PAKSA BUKA KOTAK GEMBOK (Brute Force Display Block)
             if(el('res-content-open')) { el('res-content-open').classList.add('hidden'); el('res-content-open').style.display = 'none'; }
             if(el('res-content-locked')) { el('res-content-locked').classList.remove('hidden'); el('res-content-locked').style.display = 'block'; }
 
@@ -1153,13 +1170,39 @@ function renderStudentView(res) {
                 const diff = target - now;
                 
                 if(diff > 0) {
+                    // Masih jalan hitung mundur
                     const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                     const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                     const sec = Math.floor((diff % (1000 * 60)) / 1000);
                     if(el('res-timer')) el('res-timer').innerText = `${h}j ${m}m ${sec}d`;
                 } else {
+                    // WAKTU HABIS! 
                     clearInterval(COUNTDOWN_INTERVAL);
-                    if(el('res-timer')) el('res-timer').innerHTML = `<span style="font-size:1.1rem; color:#b91c1c;">Waktu Tiba!</span><br><button onclick="window.location.reload()" class="btn btn-danger" style="margin-top:10px; border-radius:20px;">🔄 Cek Hasil Sekarang</button>`;
+                    if(el('res-timer')) {
+                        el('res-timer').innerHTML = `<div style="font-size:1.2rem; color:#b91c1c; margin-bottom:10px;">Menarik Data...</div><div class="spinner" style="margin: 0 auto;"><div></div><div></div><div></div></div>`;
+                    }
+                    
+                    // PERBAIKAN SAKTI: Auto-Login ulang di belakang layar untuk menjemput data nilai!
+                    setTimeout(async () => {
+                        try {
+                            const u = CURRENT_USER.data.nisn;
+                            // Jika password siswa tidak tersimpan di cache, terpaksa minta mereka login manual
+                            if(!CURRENT_USER || !u) {
+                                window.location.reload(); return;
+                            }
+                            
+                            // Tarik ulang dari server pakai data yang tersimpan
+                            const freshRes = await fetchAPI('processLogin', { u: u, p: CURRENT_USER.password_used || '123456' });
+                            
+                            if(freshRes.status === 'success' && freshRes.isOpen) {
+                                CURRENT_USER = freshRes;
+                                localStorage.setItem('userData', JSON.stringify(freshRes));
+                                renderStudentView(freshRes); // Gambar ulang layar dengan nilai yang sudah turun!
+                            } else {
+                                window.location.reload(); // Gagal auto-tarik, paksa reload browser
+                            }
+                        } catch(e) { window.location.reload(); }
+                    }, 2000); // Beri jeda 2 detik dramatis sebelum membuka
                 }
             };
             checkTime();
