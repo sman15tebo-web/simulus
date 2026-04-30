@@ -27,10 +27,11 @@
     body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); margin:0; display:flex; flex-direction:column; height:100vh; color: var(--text); overflow:hidden; }
     .hidden { display: none !important; }
     
-    /* Scrollbar Halus */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #f1f1f1; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    /* Scrollbar Halus dan Tebal */
+    ::-webkit-scrollbar { width: 12px; height: 12px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; border: 2px solid #f1f5f9; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
     .btn { padding: 12px 20px; border:none; border-radius:10px; cursor:pointer; font-weight:700; transition:0.2s; font-size: 0.9rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; z-index: 1; position: relative; white-space: nowrap; }
     .btn:active { transform: scale(0.96); }
@@ -183,9 +184,75 @@
         
         .table-container { width: 100vw; margin-left: -15px; padding-left: 15px; padding-right: 15px; border-radius: 0; border-left: none; border-right: none; box-sizing: border-box; }
         
-        #page-students .card div[style*="display:flex"] { flex-direction: column; }
-        #page-students .card div[style*="display:flex"] > div { width: 100%; }
+          /* --- PERBAIKAN TOMBOL LOGOUT HP & HAMBURGER --- */
+        .text-logout { display: none; } /* Sembunyikan teks 'Keluar' di HP */
+        .icon-logout { display: inline; font-size: 1.2rem; }
+        .top-logout-btn { padding: 8px 12px !important; border-radius: 8px !important; }
+        .menu-toggle { display: none !important; } /* Pastikan menu hamburger mati total di HP */
+        
+        #tbl-grades-input thead { display: none; }
+        #tbl-grades-input, #tbl-grades-input tbody, #tbl-grades-input tr, #tbl-grades-input td { display: block; width: 100%; box-sizing: border-box; }
+        #tbl-grades-input tr { margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; background: white; }
+        #tbl-grades-input td { padding: 8px 5px; text-align: right; border-bottom: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        #tbl-grades-input td:last-child { border-bottom: none; }
+        #tbl-grades-input td::before { content: attr(data-label); font-weight: 600; color: #475569; font-size: 0.85rem; }
+        #tbl-grades-input td:first-child { background: #f8fafc; font-weight: bold; justify-content: center; text-align: center; border-radius: 6px; padding: 10px; margin-bottom: 10px; color: #1e40af; }
+        #tbl-grades-input td:first-child::before { display: none; }
+        #tbl-grades-input td input { width: 60%; text-align: center; }
+
+        /* --- 1. MATIKAN SIDEBAR & MENU HAMBURGER DI HP --- */
+        .sidebar { display: none !important; }
+        .menu-toggle { display: none !important; }
+        .sidebar-overlay { display: none !important; }
+
+        /* --- 2. HEADER KIRI (LOGO & NAMA SEKOLAH) --- */
+        .header-left h3 { display: none; } /* Sembunyikan tulisan 'Panel Admin' */
+        .header-left span { font-size: 0.95rem !important; font-weight: 800; color: var(--secondary) !important; text-transform: uppercase; white-space: normal !important; line-height: 1.2; }
+        
+        /* --- 3. HEADER KANAN (SETTING & KELUAR) --- */
+        .header-right { display: flex; gap: 8px; align-items: center; }
+        .top-setting-btn { padding: 6px 12px !important; font-size: 1.2rem !important; border: none; background: #f1f5f9; border-radius: 8px; color: var(--text); }
+        .top-setting-btn:active { background: #e2e8f0; }
+
+        /* --- 4. BOTTOM NAVIGATION NATIVE --- */
+        .main { padding-bottom: 90px !important; } /* Beri ruang di bawah agar konten tidak tertutup menu */
+        .bottom-nav {
+            display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+            background: white; border-top: 1px solid #e2e8f0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+            z-index: 1000; justify-content: space-between;
+            align-items: center; height: 65px; padding: 0 10px;
+        }
+        .b-nav-item {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #94a3b8; font-size: 1.3rem; cursor: pointer; flex: 1; transition: 0.2s;
+        }
+        .b-nav-item span { font-size: 0.65rem; font-weight: 700; margin-top: 4px; }
+        .b-nav-item.active { color: var(--primary); transform: translateY(-3px); }
+        
+        /* Tombol HOME Tengah Melayang */
+        .b-nav-item.center-nav {
+            background: var(--primary); color: white !important;
+            width: 55px; height: 55px; flex: 0 0 55px;
+            border-radius: 50%; border: 4px solid var(--bg);
+            box-shadow: 0 4px 15px rgba(37,99,235,0.4);
+            transform: translateY(-20px);
+        }
+        .b-nav-item.center-nav span { display: none; } /* Hilangkan teks di tombol tengah */
+        .b-nav-item.center-nav.active { transform: translateY(-23px) scale(1.05); }
+
+        /* --- 5. PERBAIKAN KOLOM SETTING SKL (1 BARIS PENUH) --- */
+        #skl-section-setting .grid-2 { display: flex !important; flex-direction: column !important; gap: 10px !important; }
+        #skl-section-setting .grid-2 > div { width: 100% !important; grid-column: span 1 !important; }
     }
+
+    /* --- OBAT ANTI OVERLAY GAIB DI LAPTOP/PC --- */
+    @media (min-width: 769px) {
+        .sidebar-overlay { display: none !important; }
+        .bottom-nav { display: none !important; }
+    }
+
+
   </style>
 </head>
 <body>
@@ -241,16 +308,25 @@
      <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
      <div class="app-header">
-       <div class="header-left">
-         <div class="menu-toggle" onclick="toggleSidebar()">☰</div>
-         <img id="h-logo-sek" src="" style="height:35px;">
-         <div>
-            <h3 style="margin:0; font-size:1rem; color:var(--text);">Panel Admin</h3>
-            <span style="font-size:0.75rem; color:var(--text-light); display:block;" id="h-nama-sek">Sekolah</span>
-         </div>
-       </div>
-       <button class="btn btn-danger btn-sm" onclick="doLogout()">Keluar</button>
-     </div>
+        <div class="header-left">
+          <!-- Tombol hamburger tetap ada, tapi disembunyikan lewat CSS di HP -->
+          <div class="menu-toggle" onclick="toggleSidebar()">☰</div>
+          <img id="h-logo-sek" src="" style="height:35px;">
+          <div>
+             <h3 style="margin:0; font-size:1rem; color:var(--text);">Panel Admin</h3>
+             <span style="font-size:0.75rem; color:var(--text-light); display:block;" id="h-nama-sek">Sekolah</span>
+          </div>
+        </div>
+        
+        <div class="header-right">
+           <button class="btn btn-outline top-setting-btn" onclick="nav('settings')" title="Pengaturan">⚙️</button>
+           <!-- PERBAIKAN: Tombol teks Keluar diganti ikon untuk HP -->
+           <button class="btn btn-danger top-logout-btn" onclick="doLogout()" title="Keluar">
+               <span class="text-logout">Keluar</span>
+               <span class="icon-logout">🚪</span>
+           </button>
+        </div>
+      </div>
      
     <div class="admin-body">
       <div class="sidebar">
@@ -405,9 +481,10 @@
                              <option value="">-- Pilih Kelas --</option>
                          </select>
                      </div>
-                     <div style="display:flex; align-items:flex-end; gap:10px;">
-                         <button class="btn btn-danger" onclick="batchPrintSKL('pdf')">🖨️ Cetak Semua (PDF)</button>
-                         <button class="btn btn-primary" onclick="batchPrintSKL('doc')">🖨️ Cetak Semua (DOC)</button>
+                     <!-- PERBAIKAN TOMBOL CETAK HP: Dibuat sejajar kiri-kanan -->
+                     <div style="display:flex; align-items:flex-end; gap:10px; width:100%; margin-top:5px;">
+                         <button class="btn btn-danger" style="flex:1; padding:12px 5px;" onclick="batchPrintSKL('pdf')">🖨️ Cetak PDF</button>
+                         <button class="btn btn-primary" style="flex:1; padding:12px 5px;" onclick="batchPrintSKL('doc')">🖨️ Cetak DOC</button>
                      </div>
                  </div>
                  
@@ -462,7 +539,18 @@
     <div class="app-footer">© 2026 Sistem Informasi Pengumuman Kelulusan Siswa. All Right Reserved. <br>
           <a onclick="openPrivacy()" style="cursor:pointer; text-decoration:underline;">Kebijakan Privasi</a> | Powered by : <a href='https://www.farypin-inovasiteknologi.com' target="_blank" style="color:grey">PT. Farypin Inovasi Teknologi</a>
   </div>
- </div>
+
+  <!-- BOTTOM NAVIGATION KHUSUS HP -->
+         <div class="bottom-nav">
+             <div class="b-nav-item" data-target="students" onclick="nav('students')">🎓<span>Siswa</span></div>
+             <div class="b-nav-item" data-target="subjects" onclick="nav('subjects')">📚<span>Mapel</span></div>
+             <div class="b-nav-item center-nav active" data-target="dashboard" onclick="nav('dashboard')">🏠</div>
+             <div class="b-nav-item" data-target="grades" onclick="nav('grades')">📝<span>Nilai</span></div>
+             <div class="b-nav-item" data-target="skl" onclick="nav('skl')">🖨️<span>Cetak SKL</span></div>
+         </div>
+      </div> <!-- INI PENUTUP #admin-layout NYA -->
+
+
   <div id="student-view-layout" class="hidden student-bg">
       <div class="student-header">
           <div class="logos-wrapper">
@@ -524,7 +612,7 @@
       
       <div class="app-footer student-footer">
           © 2026 Sistem Informasi Pengumuman Kelulusan Siswa. All Right Reserved. <br>
-          <a onclick="openPrivacy()" style="cursor:pointer; text-decoration:underline;">Kebijakan Privasi</a> | Created by : <a href='https://www.fary-edtech.my.id' target="_blank" style="color:grey">Fary EdTech</a>
+          <a onclick="openPrivacy()" style="cursor:pointer; text-decoration:underline;">Kebijakan Privasi</a> | Powered by : <a href='https://www.farypin-inovasiteknologi.com' target="_blank" style="color:grey">PT. Farypin Inovasi Teknologi</a>
       </div>
   </div>
 
