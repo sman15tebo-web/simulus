@@ -339,28 +339,84 @@
         <div id="page-grades" class="hidden">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px; align-items: center;"><h2>Input Nilai</h2><button class="btn btn-success btn-sm" onclick="openImport('grades')">Import Nilai</button></div>
             <div class="card">
-              <div class="form-group"><label class="form-label">Pilih Siswa</label><select id="grade-sel-siswa" class="form-select" onchange="loadGradesView(this.value)"><option value="">-- Pilih Siswa --</option></select></div>
-              <div id="grade-container" class="hidden"><h3 id="grade-student-name" style="margin-top:0"></h3><div class="table-container"><table id="tbl-grades-input"><thead><tr><th>Mapel</th><th>Pengetahuan</th><th>Keterampilan</th><th>Sikap</th></tr></thead><tbody></tbody><tfoot><tr><td style="text-align:right">TOTAL</td><td id="calc-sum-p">0</td><td id="calc-sum-k">0</td><td>-</td></tr><tr><td style="text-align:right">RATA-RATA</td><td id="calc-avg-p">0</td><td id="calc-avg-k">0</td><td>-</td></tr></tfoot></table></div><button class="btn btn-primary" style="margin-top:15px; width:100%;" onclick="saveGrades()">Simpan Nilai</button></div>
+              <!-- PERUBAHAN: Menambahkan Grid untuk Filter Kelas -->
+              <div class="grid-2">
+                 <div class="form-group">
+                    <label class="form-label">Pilih Kelas</label>
+                    <select id="grade-sel-kelas" class="form-select" onchange="filterGradeStudents()">
+                        <option value="">-- Semua Kelas --</option>
+                    </select>
+                 </div>
+                 <div class="form-group">
+                    <label class="form-label">Pilih Siswa</label>
+                    <select id="grade-sel-siswa" class="form-select" onchange="loadGradesView(this.value)">
+                        <option value="">-- Pilih Siswa --</option>
+                    </select>
+                 </div>
+              </div>
+              
+              <div id="grade-container" class="hidden">
+                 <h3 id="grade-student-name" style="margin-top:0; border-top: 1px solid #e2e8f0; padding-top: 15px;"></h3>
+                 <div class="table-container">
+                    <table id="tbl-grades-input">
+                       <thead><tr><th>Mapel</th><th>Pengetahuan</th><th>Keterampilan</th><th>Sikap</th></tr></thead>
+                       <tbody></tbody>
+                       <tfoot><tr><td style="text-align:right; font-weight:bold;">TOTAL</td><td id="calc-sum-p" style="font-weight:bold;">0</td><td id="calc-sum-k" style="font-weight:bold;">0</td><td>-</td></tr><tr><td style="text-align:right; font-weight:bold;">RATA-RATA</td><td id="calc-avg-p" style="font-weight:bold;">0</td><td id="calc-avg-k" style="font-weight:bold;">0</td><td>-</td></tr></tfoot>
+                    </table>
+                 </div>
+                 <button class="btn btn-primary" style="margin-top:15px; width:100%;" onclick="saveGrades()">Simpan Nilai</button>
+              </div>
             </div>
         </div>
-        
+  
         <div id="page-skl" class="hidden">
-             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;"><h2>Generator SKL</h2></div>
-             <div class="card">
-               
-               <div class="form-group" style="background:#f0fdf4; padding:15px; border:1px solid #bbf7d0; border-radius:8px; position: relative;">
-                  <label class="form-label" style="color:#166534;">CARI & PILIH SISWA:</label>
-                  <input type="text" id="skl-search-input" class="form-input" autocomplete="off" placeholder="Ketik Nama atau NISN..." oninput="liveSearchSkl()" style="border-color: #10b981; background: white; margin-bottom:0;">
-                  <div id="skl-search-results" style="display:none; position: absolute; top: 100%; left: 15px; right: 15px; background: white; border: 1px solid #cbd5e1; border-radius: 0 0 10px 10px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index: 999; max-height: 200px; overflow-y: auto;"></div>
-                  <input type="hidden" id="skl-siswa">
-               </div>
+             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                 <h2>Generator SKL</h2>
+             </div>
 
-               <div class="grid-2"><div class="form-group"><label class="form-label">Nomor Surat</label><input id="skl-no" class="form-input"></div><div class="form-group"><label class="form-label">Tempat Surat</label><input id="skl-tempat" class="form-input"></div><div class="form-group"><label class="form-label">Tgl Surat</label><input id="skl-tgl" class="form-input"></div><div class="form-group"><label class="form-label">Dasar 1</label><input id="skl-d1" class="form-input"></div><div class="form-group"><label class="form-label">Dasar 2</label><input id="skl-d2" class="form-input"></div><div class="form-group"><label class="form-label">Nama Kepsek</label><input id="skl-kepsek" class="form-input"></div><div class="form-group"><label class="form-label">NIP Kepsek</label><input id="skl-nip" class="form-input"></div><div class="form-group"><label class="form-label">Pangkat</label><input id="skl-pangkat" class="form-input"></div><div class="form-group"><label class="form-label">Tembusan (Manual)</label><input id="skl-cc" class="form-input"></div></div>
-               <div style="display:flex; gap:10px; margin-top:20px; flex-wrap:wrap;">
-                   <button class="btn btn-outline" style="flex:1;" onclick="saveSKLSettingsJS()">Simpan Pengaturan</button>
-                   <button class="btn btn-success" style="flex:1;" onclick="generateSKL()">CETAK DOC</button>
-                   <button class="btn btn-danger" style="flex:1;" onclick="generatePDF()">CETAK PDF</button>
-               </div>
+             <!-- MENU TAB -->
+             <div style="display:flex; gap:10px; margin-bottom: 20px;">
+                 <button id="tab-btn-setting" class="btn btn-primary" onclick="switchSklTab('setting')" style="border-radius: 30px;">⚙️ Setting SKL</button>
+                 <button id="tab-btn-siswa" class="btn btn-outline" onclick="switchSklTab('siswa')" style="border-radius: 30px;">🎓 SKL Siswa</button>
+             </div>
+
+             <!-- BAGIAN 1: SETTING SKL -->
+             <div id="skl-section-setting" class="card">
+                 <div class="grid-2">
+                     <div class="form-group"><label class="form-label">Nomor Surat</label><input id="skl-no" class="form-input"></div>
+                     <div class="form-group"><label class="form-label">Tempat Surat</label><input id="skl-tempat" class="form-input"></div>
+                     <div class="form-group"><label class="form-label">Tgl Surat</label><input id="skl-tgl" class="form-input"></div>
+                     <div class="form-group"><label class="form-label">Dasar 1</label><input id="skl-d1" class="form-input"></div>
+                     <div class="form-group"><label class="form-label">Dasar 2</label><input id="skl-d2" class="form-input"></div>
+                     <div class="form-group"><label class="form-label">Nama Kepsek</label><input id="skl-kepsek" class="form-input"></div>
+                     <div class="form-group"><label class="form-label">NIP Kepsek</label><input id="skl-nip" class="form-input"></div>
+                     <div class="form-group"><label class="form-label">Pangkat</label><input id="skl-pangkat" class="form-input"></div>
+                     <div class="form-group" style="grid-column: span 2;"><label class="form-label">Tembusan (Pisahkan dengan koma)</label><input id="skl-cc" class="form-input"></div>
+                 </div>
+                 <button class="btn btn-outline" style="width:100%; margin-top:15px;" onclick="saveSKLSettingsJS()">💾 Simpan Pengaturan Surat</button>
+             </div>
+
+             <!-- BAGIAN 2: DAFTAR SISWA & CETAK -->
+             <div id="skl-section-siswa" class="card hidden">
+                 <div style="display:flex; justify-content:space-between; gap:10px; margin-bottom:15px; flex-wrap:wrap; background:#f8fafc; padding:15px; border-radius:10px; border:1px solid #e2e8f0;">
+                     <div class="form-group" style="margin:0; flex:1; min-width:200px;">
+                         <label class="form-label">Filter Kelas:</label>
+                         <select id="skl-filter-kelas" class="form-select" onchange="renderSklTable()">
+                             <option value="">-- Pilih Kelas --</option>
+                         </select>
+                     </div>
+                     <div style="display:flex; align-items:flex-end; gap:10px;">
+                         <button class="btn btn-danger" onclick="batchPrintSKL('pdf')">🖨️ Cetak Semua (PDF)</button>
+                         <button class="btn btn-primary" onclick="batchPrintSKL('doc')">🖨️ Cetak Semua (DOC)</button>
+                     </div>
+                 </div>
+                 
+                 <div class="table-container">
+                     <table id="tbl-skl-siswa">
+                         <thead><tr><th>NISN</th><th>Nama</th><th>JK</th><th>Kelas</th><th>Aksi Cetak Personal</th></tr></thead>
+                         <tbody></tbody>
+                     </table>
+                 </div>
              </div>
         </div>
 
