@@ -3,6 +3,10 @@
 // ==========================================
 const API_URL = "https://script.google.com/macros/s/AKfycbyCawyY6IWTiDlgNIzbO4yg_QSlciYv60K7XsXq_vo2vOt2rdm8eX_Z6p_AJ8fOu6spFQ/exec"; 
 
+/**
+ * Fungsi Pengganti google.script.run
+ * Digunakan untuk mengambil/mengirim data dari/ke Google Apps Script
+ */
 async function fetchAPI(action, payload = {}) {
     const adminToken = localStorage.getItem('adminToken');
     if (adminToken) {
@@ -21,6 +25,7 @@ async function fetchAPI(action, payload = {}) {
     }
 }
 
+
 // ==========================================
 // 2. VARIABEL GLOBAL & UTILS
 // ==========================================
@@ -32,6 +37,7 @@ let CROPPER = null;
 let UPLOAD_TARGET_ID = ''; 
 let COUNTDOWN_INTERVAL = null;
 
+// PAGINATION VARS
 let CURRENT_PAGE = 1;
 const ROWS_PER_PAGE = 10;
 let FILTERED_STUDENTS = [];
@@ -39,6 +45,7 @@ let FILTERED_STUDENTS = [];
 let CROP_RATIO = 3/4; 
 let CROP_MIME = 'image/jpeg'; 
 
+// Charts Instances
 let chartInstanceLulus = null;
 let chartInstanceGender = null;
 
@@ -46,6 +53,7 @@ const el = (id) => document.getElementById(id);
 const showLoader = () => el('loader').classList.add('active');
 const hideLoader = () => el('loader').classList.remove('active');
 const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+
 
 // ==========================================
 // 3. UI HELPER & SCROLL
@@ -82,15 +90,17 @@ function togglePass(id, icon) {
     }
 }
 
+
 // ==========================================
-// 4. INIT & AUTO FETCH DATA 
+// 4. INIT (AUTO FETCH DATA PUBLIK SAAT HALAMAN DIBUKA)
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
+    // --- 1. CEK SESI LOGIN YANG TERSIMPAN ---
     const savedUser = localStorage.getItem('userData');
     if (savedUser) {
         try {
             CURRENT_USER = JSON.parse(savedUser);
-            el('login-view').classList.add('hidden'); 
+            el('login-view').classList.add('hidden'); // Sembunyikan layar login
             
             if (CURRENT_USER.role === 'admin') {
                 el('admin-layout').classList.remove('hidden');
@@ -100,11 +110,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 renderStudentView(CURRENT_USER);
             }
         } catch (e) {
+            // Jika data corrupt, hapus sesi
             localStorage.removeItem('userData');
             localStorage.removeItem('adminToken');
         }
     }
 
+    // --- 2. TARIK DATA PUBLIK (LOGO & NAMA SEKOLAH) ---
     try {
         const res = await fetchAPI('getPublicSettings');
         if (res && res.status === 'success') {
@@ -121,9 +133,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch(e) { console.error("Gagal load setting publik"); }
 
+    // --- 3. EVENT LISTENER UNTUK LOGIN PAKAI ENTER ---
     const handleEnter = (e) => { 
         if (e.key === 'Enter') {
-            e.preventDefault(); 
+            e.preventDefault(); // Mencegah form reload bawaan browser
             doLogin(); 
         }
     };
@@ -134,14 +147,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (logP) logP.addEventListener('keypress', handleEnter);
 });
 
-// ==========================================
-// 5. LOGIN & LUPA PASSWORD
-// ==========================================
+// --- FUNGSI LOGIN HARUS BERDIRI SENDIRI DI LUAR ---
 async function doLogin() {
     const u = el('log-u').value;
     const p = el('log-p').value;
     
-    if(!u || !p) return Swal.fire('Peringatan', 'Username dan Password harus diisi', 'warning');
+    if(!u || !p) {
+        return Swal.fire('Peringatan', 'Username dan Password harus diisi', 'warning');
+    }
 
     showLoader(); 
     const res = await fetchAPI('processLogin', { u: u, p: p });
@@ -165,13 +178,18 @@ async function doLogin() {
     }
 }
 
+// ==========================================
+// 5. LOGIN & LUPA PASSWORD
+// ==========================================
 function forgotPass() {
     if (!ADMIN_WA) {
         Swal.fire('Info', 'Hubungi Admin sekolah.', 'info');
         return;
     }
+    
     var cleanNum = ADMIN_WA.toString().replace(/[^0-9]/g, '');
-    if (cleanNum.startsWith('0')) cleanNum = '62' + cleanNum.substring(1);
+    if (cleanNum.startsWith('0')) { cleanNum = '62' + cleanNum.substring(1); }
+
     var url = "https://wa.me/" + cleanNum + "?text=Halo%20Admin%20saya%20lupa%20password";
     
     Swal.fire({
@@ -185,10 +203,14 @@ function forgotPass() {
     });
 }
 
+
 function doLogout() {
     CURRENT_USER = null;
+    
+    // --- HAPUS SEMUA SESI DARI BROWSER ---
     localStorage.removeItem('adminToken'); 
     localStorage.removeItem('userData'); 
+    
     ALL_DATA = { students: [], subjects: [], grades: [], settings: {} };
     el('admin-layout').classList.add('hidden');
     el('student-view-layout').classList.add('hidden');
@@ -198,6 +220,7 @@ function doLogout() {
     if(chartInstanceLulus) { chartInstanceLulus.destroy(); chartInstanceLulus = null; }
     if(chartInstanceGender) { chartInstanceGender.destroy(); chartInstanceGender = null; }
 }
+
 
 // ==========================================
 // 6. ADMIN DASHBOARD & CORE
@@ -237,42 +260,59 @@ async function loadAllData() {
 function populateStudentSelects() {
     const selKelas = el('grade-sel-kelas');
     if(!selKelas) return;
+    
+    // 1. Dapatkan daftar kelas yang unik dari data siswa
     const uniqueClasses = [...new Set(ALL_DATA.students.map(s => String(s[7]).trim()).filter(c => c !== ''))].sort();
     
+    // 2. Isi dropdown kelas
     selKelas.innerHTML = '<option value="">-- Semua Kelas --</option>';
     uniqueClasses.forEach(c => {
         const opt = document.createElement('option');
-        opt.value = c; opt.innerText = c;
+        opt.value = c;
+        opt.innerText = c;
         selKelas.appendChild(opt);
     });
+
+    // 3. Panggil fungsi filter untuk mengisi dropdown siswa awal
     filterGradeStudents();
 }
 
 function filterGradeStudents() {
     const selectedClass = el('grade-sel-kelas').value;
     const selSiswa = el('grade-sel-siswa');
+    
     selSiswa.innerHTML = '<option value="">-- Pilih Siswa --</option>';
     
     let filteredStudents = ALL_DATA.students;
+    
+    // Jika ada kelas yang dipilih, filter data siswa
     if (selectedClass !== '') {
         filteredStudents = filteredStudents.filter(s => String(s[7]).trim() === selectedClass);
     }
+
+    // Urutkan siswa berdasarkan nama (Alfabetis) agar mudah dicari
     filteredStudents.sort((a, b) => String(a[2]).localeCompare(String(b[2])));
 
+    // Isi dropdown siswa
     filteredStudents.forEach(s => {
         const opt = document.createElement('option');
-        opt.value = s[0];
-        opt.innerText = s[2] + " (" + s[7] + ")";
+        opt.value = s[0]; // NISN
+        opt.innerText = s[2] + " (" + s[7] + ")"; // Nama (Kelas)
         selSiswa.appendChild(opt);
     });
+    
+    // Sembunyikan form nilai setiap kali ganti kelas agar tidak salah input
     el('grade-container').classList.add('hidden');
 }
 
 function toggleSidebar() {
     document.querySelector('.sidebar').classList.toggle('show');
     const overlay = document.getElementById('sidebar-overlay');
-    if(document.querySelector('.sidebar').classList.contains('show')) overlay.classList.add('active');
-    else overlay.classList.remove('active');
+    if(document.querySelector('.sidebar').classList.contains('show')) {
+        overlay.classList.add('active');
+    } else {
+        overlay.classList.remove('active');
+    }
 }
 
 function renderDashboardCharts() {
@@ -320,6 +360,7 @@ function renderDashboardCharts() {
         options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
     });
 }
+
 
 // ==========================================
 // 7. SISWA TABLE & CRUD ADMIN
@@ -415,27 +456,35 @@ function openStudentModal() {
     el('m-foto').value = ''; el('m-ucapan').value = '';
     el('m-file-skl').value = ''; el('m-preview').style.display = 'none'; el('m-file-status').innerText = '';
     
+    // Buka kunci NISN untuk Tambah Baru
     el('m-nisn').removeAttribute('readonly');
     el('m-nisn').style.background = '#fff';
 
     el('modal-student').classList.add('active');
 }
 
+// Fungsi Helper untuk menerjemahkan format tanggal dari Google Sheets
 function formatTgl(dateStr) {
     if(!dateStr) return '';
+    // Jika formatnya sudah benar (YYYY-MM-DD), langsung kembalikan
     if(/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr; 
     
     try {
         let d = new Date(dateStr);
+        // Jika Date Javascript gagal membaca formatnya (NaN)
         if(isNaN(d.getTime())) {
             let p = dateStr.split(/[\/\-]/);
+            // Cek apakah ini format DD/MM/YYYY dari locale Indonesia
             if(p.length === 3 && p[2].length === 4) {
                 return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
             }
             return '';
         }
+        // Jika berhasil dibaca, susun ulang jadi YYYY-MM-DD
         return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-    } catch(e) { return ''; }
+    } catch(e) { 
+        return ''; 
+    }
 }
 
 function editStudent(nisn) {
@@ -444,7 +493,10 @@ function editStudent(nisn) {
     el('m-nisn').value = s[0]; el('m-pass').value = s[1];
     el('m-nama').value = s[2]; el('m-nis').value = s[3];
     el('m-tmp').value = s[4]; 
+    
+    // PANGGIL FUNGSI PENERJEMAH TANGGAL DI SINI
     el('m-tgl').value = formatTgl(s[5]); 
+    
     el('m-jk').value = s[6]; el('m-thn').value = s[12];
     el('m-kelas').value = s[7]; 
     el('m-ortu').value = s[13]; el('m-status').value = s[8];
@@ -462,6 +514,7 @@ function editStudent(nisn) {
 async function handleSaveStudent(e) {
     e.preventDefault();
     
+    // --- VALIDASI NISN WAJIB TEPAT 10 ANGKA ---
     const nisnVal = el('m-nisn').value.trim();
     if(!/^\d{10}$/.test(nisnVal)) {
         return Swal.fire('Peringatan', 'NISN wajib berisi tepat 10 angka!', 'warning');
@@ -470,23 +523,23 @@ async function handleSaveStudent(e) {
     showLoader();
     const fileInput = el('m-file-skl-input');
     
-    const processSave = async (fileUrl) => {
-        const formData = {
-          nisn: nisnVal,
-          password: el('m-pass').value, 
-          nama: String(el('m-nama').value).toUpperCase(), 
-          nis: el('m-nis').value,
-          tempat_lahir: String(el('m-tmp').value).toUpperCase(), 
-          tgl_lahir: el('m-tgl').value, 
-          jk: el('m-jk').value, 
-          kelas: String(el('m-kelas').value).toUpperCase(), 
-          status: el('m-status').value, 
-          link_foto: el('m-foto').value, 
-          ucapan: el('m-ucapan').value,
-          thn_lulus: el('m-thn').value, 
-          nama_ortu: String(el('m-ortu').value).toUpperCase(), 
-          link_file_skl: fileUrl || el('m-file-skl').value
-        };
+        const processSave = async (fileUrl) => {
+            const formData = {
+              nisn: nisnVal,
+              password: el('m-pass').value, 
+              nama: String(el('m-nama').value).toUpperCase(), // <--- OTOMATIS KAPITAL
+              nis: el('m-nis').value,
+              tempat_lahir: String(el('m-tmp').value).toUpperCase(), // <--- OTOMATIS KAPITAL
+              tgl_lahir: el('m-tgl').value, 
+              jk: el('m-jk').value, 
+              kelas: String(el('m-kelas').value).toUpperCase(), // <--- OTOMATIS KAPITAL (Opsional, agar format kelas rapi)
+              status: el('m-status').value, 
+              link_foto: el('m-foto').value, 
+              ucapan: el('m-ucapan').value,
+              thn_lulus: el('m-thn').value, 
+              nama_ortu: String(el('m-ortu').value).toUpperCase(), // <--- OTOMATIS KAPITAL
+              link_file_skl: fileUrl || el('m-file-skl').value
+            };
         
         const res = await fetchAPI('adminSaveStudent', { data: formData });
         loadAllData(); 
@@ -557,6 +610,7 @@ function resetManual() {
   });
 }
 
+
 // ==========================================
 // 8. MAPEL & GRADES CRUD
 // ==========================================
@@ -564,7 +618,9 @@ function renderSubjects(data) {
     const tbody = el('tbl-subjects').querySelector('tbody'); tbody.innerHTML = '';
     data.forEach(row => {
       const tr = document.createElement('tr');
+      // Menampilkan data kelas (jika kosong, tampilkan badge 'Semua Kelas')
       const targetKelas = row[4] ? row[4] : '<span style="color:#10b981;font-weight:bold;">Semua Kelas</span>';
+      
       tr.innerHTML = `<td><button class="btn btn-danger btn-sm" onclick='deleteMapel("${row[0]}")'>Hapus</button></td><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${targetKelas}</td>`;
       tbody.appendChild(tr);
     });
@@ -574,11 +630,12 @@ function openMapelModal() {
     el('modal-mapel').classList.add('active'); 
     el('mp-id').value=''; 
     el('mp-nama').value=''; 
-    el('mp-kelas').value=''; 
+    el('mp-kelas').value=''; // Kosongkan inputan baru
 }
 
 async function handleSaveMapel(e) { 
     e.preventDefault(); showLoader(); 
+    // Tambahkan payload kls
     const payload = { i: el('mp-id').value, n: el('mp-nama').value, k: el('mp-kkm').value, c: el('mp-cat').value, kls: el('mp-kelas').value };
     await fetchAPI('adminSaveMapel', payload);
     loadAllData(); 
@@ -600,16 +657,18 @@ function loadGradesView(nisn) {
     const student = ALL_DATA.students.find(x => String(x[0]) == String(nisn));
     el('grade-student-name').innerText = student ? student[2] : '';
     
+    // --- FILTER MAPEL BERDASARKAN KELAS SISWA ---
     const studentClass = student ? String(student[7]).trim() : '';
     const filteredSubjects = ALL_DATA.subjects.filter(sub => {
         const subClass = sub[4] ? String(sub[4]).trim() : '';
-        if(subClass === '') return true; 
+        if(subClass === '') return true; // Mapel Umum
         return subClass.split(',').map(x=>x.trim()).includes(studentClass);
     });
 
     const existingGrades = ALL_DATA.grades.filter(g => String(g[1]) == String(nisn));
     const tbody = el('tbl-grades-input').querySelector('tbody'); tbody.innerHTML = '';
     
+    // Looping menggunakan mapel yang sudah difilter
     filteredSubjects.forEach(sub => {
        const g = existingGrades.find(x => String(x[2]) == String(sub[0]));
        const tr = document.createElement('tr');
@@ -625,7 +684,6 @@ function validateGrade(input) {
     if(val > 100) { Swal.fire('Error', 'Nilai maksimal adalah 100!', 'warning'); input.value = ''; return; }
     if (event.type === 'change' && input.value !== "") { input.value = parseFloat(val).toFixed(2); }
 }
-
 function calcGrades() {
     let sumP = 0, sumK = 0, count = 0;
     document.querySelectorAll('.grade-p').forEach(i => { sumP += parseFloat(i.value||0); count++; });
@@ -633,7 +691,6 @@ function calcGrades() {
     el('calc-sum-p').innerText = sumP; el('calc-sum-k').innerText = sumK;
     el('calc-avg-p').innerText = count > 0 ? (sumP/count).toFixed(2) : 0; el('calc-avg-k').innerText = count > 0 ? (sumK/count).toFixed(2) : 0;
 }
-
 async function saveGrades() {
     const grades = [];
     const rows = el('tbl-grades-input').querySelectorAll('tbody tr');
@@ -645,9 +702,12 @@ async function saveGrades() {
     if(res.status==='success') Toast.fire('Tersimpan', res.data, 'success');
 }
 
+
 // ==========================================
-// 9. SKL GENERATOR
+// 9. SKL GENERATOR & EXCEL IMPORT
 // ==========================================
+
+// Logika Tampilan Tab
 function switchSklTab(tab) {
     if(tab === 'setting') {
         el('skl-section-setting').classList.remove('hidden');
@@ -671,6 +731,7 @@ async function saveSKLSettingsJS() {
 }
 
 function getSKLFormData(nisn) {
+    // Sekarang menerima nisn langsung dari tombol, bukan dari inputan manual
     return { nisn: nisn, no_surat: el('skl-no').value, tempat_surat: el('skl-tempat').value, tgl_surat: el('skl-tgl').value, dasar1: el('skl-d1').value, dasar2: el('skl-d2').value, kepsek_nama: el('skl-kepsek').value, kepsek_nip: el('skl-nip').value, kepsek_pangkat: el('skl-pangkat').value, tembusan: el('skl-cc').value };
 }
 
@@ -698,7 +759,7 @@ function renderSklTable() {
         filtered = filtered.filter(s => String(s[7]).trim() === selectedClass);
     }
     
-    filtered.sort((a, b) => String(a[2]).localeCompare(String(b[2]))); 
+    filtered.sort((a, b) => String(a[2]).localeCompare(String(b[2]))); // Urut Alfabet
     
     filtered.forEach(row => {
         const tr = document.createElement('tr');
@@ -720,6 +781,7 @@ async function printSingleSKL(nisn, format) {
     showLoader();
     const formData = getSKLFormData(nisn);
     
+    // Agar sinkron dengan fitur folder kelas, PDF dan DOC sama-sama kita proses di Drive
     const actionName = format === 'doc' ? 'generateSKLDoc' : 'generateSKLPdfToDrive';
     const result = await fetchAPI(actionName, { formData: formData });
     
@@ -729,28 +791,38 @@ async function printSingleSKL(nisn, format) {
         const driveUrl = result.data.url;
         let downloadUrl = driveUrl;
         
+        // Ekstrak ID File dari URL untuk mengubahnya menjadi link Direct Download
         const match = driveUrl.match(/[-\w]{25,}/);
         if(match) {
             const fileId = match[0];
-            if(format === 'doc') downloadUrl = `https://docs.google.com/document/d/${fileId}/export?format=docx`;
-            else downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+            if(format === 'doc') {
+                // Link download khusus file Google Docs -> ke .docx
+                downloadUrl = `https://docs.google.com/document/d/${fileId}/export?format=docx`;
+            } else {
+                // Link download khusus file dari Google Drive
+                downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+            }
         }
         
+        // Modal Pop-Up dengan 2 Tombol Berwarna
         Swal.fire({ 
             title: 'Berhasil Dicetak!', 
-            html: `Dokumen SKL berhasil dibuat ke folder kelas.<br><br>
+            html: `Dokumen SKL atas nama siswa berhasil dibuat ke dalam folder kelas.<br><br>
                    <div style="display:flex; justify-content:center; gap:10px; margin-top:20px;">
                        <a href="${driveUrl}" target="_blank" style="padding:10px 20px; background:#2563eb; color:white; border-radius:10px; text-decoration:none; font-weight:bold; font-size:0.95rem; box-shadow:0 4px 6px rgba(37,99,235,0.2); transition:0.2s;">📂 BUKA DI DRIVE</a>
                        <a href="${downloadUrl}" style="padding:10px 20px; background:#10b981; color:white; border-radius:10px; text-decoration:none; font-weight:bold; font-size:0.95rem; box-shadow:0 4px 6px rgba(16,185,129,0.2); transition:0.2s;">⬇️ UNDUH FILE</a>
                    </div>`,
             icon: 'success', 
-            showConfirmButton: false, 
-            showCloseButton: true 
+            showConfirmButton: false, // Sembunyikan tombol OK bawaan
+            showCloseButton: true // Munculkan tanda (X) di pojok kanan atas
         }); 
     } 
-    else { Swal.fire('Error', result.message || result.data.message, 'error'); }
+    else { 
+        Swal.fire('Error', result.message || result.data.message, 'error'); 
+    }
 }
 
+// FUNGSI SUPER: CETAK MASSAL OTOMATIS (SMART BATCHING)
 async function batchPrintSKL(format) {
     const selectedClass = el('skl-filter-kelas').value;
     if (!selectedClass) return Swal.fire('Pilih Kelas', 'Silakan pilih kelas pada kolom filter terlebih dahulu!', 'warning');
@@ -760,7 +832,7 @@ async function batchPrintSKL(format) {
 
     const confirm = await Swal.fire({
         title: `Cetak ${students.length} SKL?`,
-        text: `Sistem akan memproses ${students.length} file ${format.toUpperCase()} secara bergantian ke Folder Drive.`,
+        text: `Sistem akan memproses ${students.length} file ${format.toUpperCase()} secara bergantian dan menyimpannya ke Folder Google Drive.`,
         icon: 'question',
         showCancelButton: true, confirmButtonText: 'Ya, Mulai!', cancelButtonText: 'Batal'
     });
@@ -772,16 +844,17 @@ async function batchPrintSKL(format) {
 
     Swal.fire({
         title: 'Memproses Batch...',
-        html: `Menyiapkan Data...<br><br><small>Mohon jangan tutup halaman ini.</small>`,
+        html: `Menyiapkan Data...<br><br><small>Mohon jangan tutup atau muat ulang halaman ini.</small>`,
         allowOutsideClick: false,
         didOpen: () => { Swal.showLoading(); }
     });
 
+    // Panggil fungsi PDF Drive yang baru atau fungsi Doc bawaan
     const actionName = format === 'pdf' ? 'generateSKLPdfToDrive' : 'generateSKLDoc';
 
     for (let i = 0; i < students.length; i++) {
         const nisn = students[i][0];
-        Swal.getHtmlContainer().innerHTML = `Mencetak: <b>${students[i][2]}</b><br>Progres: <b>${i + 1}</b> / ${students.length}<br><br><small>Menyimpan ke Google Drive...</small>`;
+        Swal.getHtmlContainer().innerHTML = `Mencetak Siswa: <b>${students[i][2]}</b><br>Progres: <b>${i + 1}</b> / ${students.length}<br><br><small>Menyimpan ke Google Drive...</small>`;
         
         const formData = getSKLFormData(nisn);
         const res = await fetchAPI(actionName, { formData: formData });
@@ -795,13 +868,13 @@ async function batchPrintSKL(format) {
 
     Swal.fire({
         title: 'Selesai!',
-        html: `Berhasil: <b>${successCount}</b><br>Gagal: <b>${failCount}</b><br><br>Semua file disimpan di Folder SKL Google Drive Anda.`,
+        html: `Berhasil: <b>${successCount}</b><br>Gagal: <b>${failCount}</b><br><br>Semua file telah disimpan di Folder SKL Google Drive Anda.`,
         icon: successCount > 0 ? 'success' : 'warning',
         confirmButtonText: 'Buka Folder Drive',
         showCancelButton: true, cancelButtonText: 'Tutup'
     }).then((result) => {
         if (result.isConfirmed) window.open(folderUrl, '_blank');
-        loadAllData(); 
+        loadAllData(); // Refresh data supaya link manual terupdate
     });
 }
 
@@ -852,6 +925,7 @@ async function saveSettings(e) {
     loadAllData(); hideLoader(); Toast.fire('Tersimpan', 'Pengaturan disimpan', 'success');
 }
 
+
 // ==========================================
 // 11. CROPPER & EXCEL IMPORT UI
 // ==========================================
@@ -862,7 +936,6 @@ function cropImg(type, targetId) {
     if(CROPPER) { CROPPER.destroy(); CROPPER = null; }
     el('crop-img').src = ''; el('file-input').value = '';
 }
-
 el('file-input').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if(file) {
@@ -878,24 +951,40 @@ el('file-input').addEventListener('change', function(e) {
 
 async function doCrop() {
     if(!CROPPER) return;
+    
     showLoader();
+    
     try {
+        // Tentukan ukuran agar ringan (Logo max 150px, Foto max 200px)
         const maxWidth = CROP_MIME === 'image/png' ? 150 : 200;
-        const canvas = CROPPER.getCroppedCanvas({ width: maxWidth, imageSmoothingEnabled: true, imageSmoothingQuality: 'high' });
+        
+        // Ambil gambar dari Cropper
+        const canvas = CROPPER.getCroppedCanvas({ 
+            width: maxWidth, 
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high' 
+        });
+
         if (!canvas) throw new Error("Canvas gagal dimuat");
 
+        // Jadikan teks Base64 langsung dengan kompresi 70%
         const base64String = canvas.toDataURL(CROP_MIME || 'image/jpeg', 0.7);
+        
+        // Masukkan Base64 ke dalam input teks (INI YANG BIKIN UNDEFINED SEBELUMNYA JIKA SALAH)
         el(UPLOAD_TARGET_ID).value = base64String;
         
+        // Tampilkan preview jika yang di-upload adalah foto siswa
         if(UPLOAD_TARGET_ID === 'm-foto') { 
             el('m-preview').src = base64String; 
             el('m-preview').style.display='block'; 
         }
+        
         el('modal-crop').classList.remove('active'); 
     } catch (e) {
         console.error("Gagal Crop:", e);
         Swal.fire('Error', 'Gagal memotong gambar', 'error');
     }
+    
     hideLoader();
 }
 
@@ -904,17 +993,24 @@ function openImport(type) { el('modal-import').classList.add('active'); el('moda
 function downloadTemplate() {
     const type = el('modal-import').getAttribute('data-type');
     let csv = "";
+    
     if(type == 'students') {
+        // Urutan ini SEKARANG COCOK 100% dengan kolom A sampai O di Google Sheets
         csv = "NISN,PASSWORD,NAMA,NIS,TEMPAT_LAHIR,TGL_LAHIR(YYYY-MM-DD),JK(L/P),KELAS,STATUS,LINK_SKL(KOSONGKAN),LINK_FOTO(KOSONGKAN),UCAPAN,THN_LULUS,NAMA_ORTU,LINK_FILE_MANUAL(KOSONGKAN)";
-    } else if(type == 'subjects') {
+    }
+    else if(type == 'subjects') {
         csv = "ID,NAMA_MAPEL,KKM,KATEGORI,KELAS_TUJUAN(KOSONGKAN JIKA UMUM)";
-    } else if(type == 'grades') {
+    }
+    else if(type == 'grades') {
         csv = "NISN,ID_MAPEL,PENGETAHUAN,KETERAMPILAN,SIKAP";
     }
+    
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a'); 
-    a.href = url; a.download = 'template_' + type + '.csv'; a.click();
+    a.href = url; 
+    a.download = 'template_' + type + '.csv'; 
+    a.click();
 }
 
 function doImport() {
@@ -927,6 +1023,8 @@ function doImport() {
         const data = e.target.result;
         const workbook = XLSX.read(data, {type: 'binary'});
         const sheetName = workbook.SheetNames[0];
+        
+        // PENTING: Tambahkan raw: false agar format teks bawaan Excel dipertahankan
         const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {header: 1, raw: false});
         if(json.length > 0) json.shift(); 
         
@@ -940,23 +1038,34 @@ function doImport() {
             while(newRow.length < maxCols) newRow.push('');
             newRow = newRow.slice(0, maxCols); 
             
+            // --- KAPITALISASI OTOMATIS & PERBAIKAN NISN ---
             if (type === 'students') {
-                if (newRow[2]) newRow[2] = String(newRow[2]).toUpperCase(); 
-                if (newRow[4]) newRow[4] = String(newRow[4]).toUpperCase(); 
-                if (newRow[7]) newRow[7] = String(newRow[7]).toUpperCase(); 
-                if (newRow[13]) newRow[13] = String(newRow[13]).toUpperCase(); 
+                if (newRow[2]) newRow[2] = String(newRow[2]).toUpperCase(); // Nama
+                if (newRow[4]) newRow[4] = String(newRow[4]).toUpperCase(); // Tempat Lahir
+                if (newRow[7]) newRow[7] = String(newRow[7]).toUpperCase(); // Kelas
+                if (newRow[13]) newRow[13] = String(newRow[13]).toUpperCase(); // Ortu
 
+                // Trik mengembalikan angka 0 di depan NISN
                 if (newRow[0]) {
                     let nisnStr = String(newRow[0]).replace(/\D/g, ''); 
-                    if (nisnStr.length > 0 && nisnStr.length < 10) newRow[0] = nisnStr.padStart(10, '0');
-                    else newRow[0] = nisnStr;
+                    if (nisnStr.length > 0 && nisnStr.length < 10) {
+                        newRow[0] = nisnStr.padStart(10, '0');
+                    } else {
+                        newRow[0] = nisnStr;
+                    }
                 }
             }
+            
+            // Trik mengembalikan angka 0 di depan NISN untuk input nilai
             if (type === 'grades' && newRow[0]) {
                 let nisnStr = String(newRow[0]).replace(/\D/g, ''); 
-                if (nisnStr.length > 0 && nisnStr.length < 10) newRow[0] = nisnStr.padStart(10, '0');
-                else newRow[0] = nisnStr;
+                if (nisnStr.length > 0 && nisnStr.length < 10) {
+                    newRow[0] = nisnStr.padStart(10, '0');
+                } else {
+                    newRow[0] = nisnStr;
+                }
             }
+
             return newRow;
         });
 
@@ -967,6 +1076,7 @@ function doImport() {
             return Swal.fire('Error', 'File kosong atau format salah!', 'error');
         }
         
+        // --- VALIDASI BLOKIR JIKA ADA NISN > 10 ANGKA ATAU MASIH SALAH ---
         if (type === 'students' || type === 'grades') {
             const invalidNISN = finalData.find(r => r[0].length !== 10);
             if (invalidNISN) {
@@ -980,142 +1090,167 @@ function doImport() {
         el('modal-import').classList.remove('active'); 
         loadAllData(); 
         
-        if(res.status === 'success') Swal.fire('Sukses', res.data, 'success');
-        else Swal.fire('Error', res.message, 'error');
+        if(res.status === 'success') {
+            Swal.fire('Sukses', res.data, 'success');
+        } else {
+            Swal.fire('Error', res.message, 'error');
+        }
     };
     reader.readAsBinaryString(file);
 }
 
+
 // ==========================================
 // 12. STUDENT VIEW (KELULUSAN)
 // ==========================================
+// --- FUNGSI TAMPILAN DASHBOARD SISWA (ANTI-CRASH) ---
 function renderStudentView(res) {
-    const s = res.data || {}; 
-    const set = res.settings || {};
+    try {
+        const s = res.data || {}; 
+        const set = res.settings || {};
 
-    el('s-nama-ins-text').innerText = set.NAMA_INSTANSI || 'PEMERINTAH';
-    el('s-nama-sek-text').innerText = set.NAMA_SEKOLAH || 'SEKOLAH';
-    el('s-nama-sek').innerText = set.NAMA_SEKOLAH || 'SEKOLAH';
+        el('s-nama-ins-text').innerText = set.NAMA_INSTANSI || 'PEMERINTAH';
+        el('s-nama-sek-text').innerText = set.NAMA_SEKOLAH || 'SEKOLAH';
+        el('s-nama-sek').innerText = set.NAMA_SEKOLAH || 'SEKOLAH';
 
-    if(set.LOGO_INSTANSI) { el('s-logo-ins').src = set.LOGO_INSTANSI; el('s-logo-ins').style.display='block'; }
-    if(set.LOGO_SEKOLAH) { el('s-logo-sek').src = set.LOGO_SEKOLAH; el('s-logo-sek').style.display='block'; }
+        if(set.LOGO_INSTANSI) { el('s-logo-ins').src = set.LOGO_INSTANSI; el('s-logo-ins').style.display='block'; }
+        if(set.LOGO_SEKOLAH) { el('s-logo-sek').src = set.LOGO_SEKOLAH; el('s-logo-sek').style.display='block'; }
 
-    el('res-nama').innerText = s.nama || '-';
-    el('res-nisn').innerText = s.nisn || '-';
+        el('res-nama').innerText = s.nama || '-';
+        el('res-nisn').innerText = s.nisn || '-';
 
-    if(s.foto) { el('res-foto').src = s.foto; el('res-foto').style.display='block'; }
+        if(s.foto) { el('res-foto').src = s.foto; el('res-foto').style.display='block'; }
 
-    if (res.isOpen === true) {
-        el('res-content-locked').classList.add('hidden');
-        el('res-content-open').classList.remove('hidden');
+        // Jika Pengumuman Dibuka
+        if (res.isOpen) {
+            el('res-content-locked').classList.add('hidden');
+            el('res-content-open').classList.remove('hidden');
 
-        el('res-nis').innerText = s.nis || '-';
-        el('res-ttl').innerText = s.ttl || '-';
-        el('res-kelas').innerText = s.kelas || '-';
-        el('res-ortu').innerText = s.ortu || '-';
+            el('res-nis').innerText = s.nis || '-';
+            el('res-ttl').innerText = s.ttl || '-';
+            el('res-kelas').innerText = s.kelas || '-';
+            el('res-ortu').innerText = s.ortu || '-';
 
-        if(res.grades && res.subjects) {
-            renderStudentResult(res);
-        } else {
-            el('res-table-container').innerHTML = '<div style="text-align:center; padding:20px; color:#ef4444;">Data nilai belum tersedia. Jika ini kesalahan, lapor ke Admin.</div>';
-        }
-    } 
-    else {
-        el('res-content-locked').classList.remove('hidden');
-        el('res-content-open').classList.add('hidden');
-
-        const target = res.targetTime;
-        if(COUNTDOWN_INTERVAL) clearInterval(COUNTDOWN_INTERVAL);
-
-        const checkTime = () => {
-            const now = new Date().getTime();
-            const diff = target ? (target - now) : 0;
-            
-            if(diff > 0) {
-                const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                const sec = Math.floor((diff % (1000 * 60)) / 1000);
-                el('res-timer').innerText = `${h}j ${m}m ${sec}d`;
+            // Cek apakah data nilai lengkap
+            if(res.grades && res.subjects && res.grades.length > 0) {
+                renderStudentResult(res);
             } else {
-                clearInterval(COUNTDOWN_INTERVAL);
-                el('res-timer').innerHTML = `<span style="font-size:1.1rem; color:#b91c1c;">Waktu Tiba!</span><br><button onclick="window.location.reload()" class="btn btn-danger" style="margin-top:10px; font-size:0.9rem; border-radius:20px; box-shadow:0 4px 10px rgba(239, 68, 68, 0.3);">🔄 Cek Hasil Sekarang</button>`;
+                el('res-table-container').innerHTML = '<div style="text-align:center; padding:20px; color:#ef4444; background:#fef2f2; border-radius:10px; border:1px solid #fecaca;">Data nilai belum tersedia. Jika ini kesalahan, harap lapor ke Admin.</div>';
             }
-        };
-        
-        checkTime();
-        COUNTDOWN_INTERVAL = setInterval(checkTime, 1000);
+        } 
+        // Jika Pengumuman Belum Dibuka
+        else {
+            el('res-content-locked').classList.remove('hidden');
+            el('res-content-open').classList.add('hidden');
+
+            const target = res.targetTime;
+            if(COUNTDOWN_INTERVAL) clearInterval(COUNTDOWN_INTERVAL);
+
+            const checkTime = () => {
+                const now = new Date().getTime();
+                const diff = target ? (target - now) : 0;
+                
+                if(diff > 0) {
+                    const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const sec = Math.floor((diff % (1000 * 60)) / 1000);
+                    el('res-timer').innerText = `${h}j ${m}m ${sec}d`;
+                } else {
+                    clearInterval(COUNTDOWN_INTERVAL);
+                    // PENTING: Saat jam habis, paksa Logout agar Cache lama terhapus saat mereka login ulang!
+                    el('res-timer').innerHTML = `<span style="font-size:1.1rem; color:#b91c1c;">Waktu Tiba!</span><br><button onclick="doLogout()" class="btn btn-danger" style="margin-top:10px; font-size:0.9rem; border-radius:20px; box-shadow:0 4px 10px rgba(239, 68, 68, 0.3);">🔄 Login Ulang Untuk Melihat Hasil</button>`;
+                }
+            };
+            
+            checkTime();
+            COUNTDOWN_INTERVAL = setInterval(checkTime, 1000);
+        }
+    } catch (error) {
+        console.error(error);
+        Swal.fire('Error Sistem', 'Terjadi kegagalan saat memuat data: ' + error.message, 'error');
     }
 }
 
+// --- FUNGSI MENGGAMBAR TABEL NILAI SISWA ---
 function renderStudentResult(res) {
-    const s = res.data || {};
-    const grades = res.grades || [];
-    const subjects = res.subjects || [];
+    try {
+        const s = res.data || {};
+        const grades = res.grades || [];
+        const subjects = res.subjects || [];
 
-    el('res-status').innerText = s.status || '-';
-    el('res-status').className = 'p-status ' + (s.status == 'LULUS' ? 'status-lulus' : 'status-gagal');
-    el('res-ucapan').innerText = s.ucapan || (s.status == 'LULUS' ? 'Selamat, Anda Lulus!' : 'Mohon maaf, Anda belum lulus.');
+        el('res-status').innerText = s.status || '-';
+        
+        // Memastikan warna kelulusan selalu ada walau tanpa class CSS tambahan
+        const statusBg = s.status === 'LULUS' ? '#d1fae5' : '#fee2e2';
+        const statusColor = s.status === 'LULUS' ? '#059669' : '#b91c1c';
+        el('res-status').style.cssText = `display:inline-block; padding:6px 15px; border-radius:20px; font-weight:800; font-size:0.9rem; background:${statusBg}; color:${statusColor};`;
 
-    const studentClass = String(s.kelas).trim().toUpperCase();
-    const filteredSubjects = subjects.filter(sub => {
-        const subClass = sub[4] ? String(sub[4]).trim().toUpperCase() : '';
-        if(subClass === '') return true;
-        return subClass.split(',').map(x=>x.trim()).includes(studentClass);
-    });
+        el('res-ucapan').innerText = s.ucapan || (s.status == 'LULUS' ? 'Selamat, Anda Lulus!' : 'Mohon maaf, Anda belum lulus.');
 
-    let sum = 0, count = 0;
-    
-    let tableHTML = `
-    <table style="width:100%; border-collapse: collapse; margin-top: 25px; font-size: 0.85rem; text-align: left; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-        <thead>
-            <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
-                <th style="padding:12px 15px; font-weight:700; color:#475569;">MATA PELAJARAN</th>
-                <th style="padding:12px 15px; font-weight:700; text-align:center; color:#475569;">NILAI</th>
-            </tr>
-        </thead>
-        <tbody>
-    `;
+        const studentClass = String(s.kelas || '').trim().toUpperCase();
+        const filteredSubjects = subjects.filter(sub => {
+            const subClass = sub[4] ? String(sub[4]).trim().toUpperCase() : '';
+            if(subClass === '') return true;
+            return subClass.split(',').map(x=>x.trim()).includes(studentClass);
+        });
 
-    filteredSubjects.forEach((sub, i) => {
-        const g = grades.find(x => String(x[2]) == String(sub[0]));
-        const val = g ? parseFloat(g[3]) : 0;
-        sum += val; count++;
+        let sum = 0, count = 0;
+        
+        let tableHTML = `
+        <table style="width:100%; border-collapse: collapse; margin-top: 25px; font-size: 0.85rem; text-align: left; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <thead>
+                <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
+                    <th style="padding:12px 15px; font-weight:700; color:#475569;">MATA PELAJARAN</th>
+                    <th style="padding:12px 15px; font-weight:700; text-align:center; color:#475569;">NILAI</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+
+        filteredSubjects.forEach((sub) => {
+            const g = grades.find(x => String(x[2]) == String(sub[0]));
+            const val = g ? parseFloat(g[3]) : 0;
+            sum += val; count++;
+
+            tableHTML += `
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:12px 15px; color:#334155;">${sub[1]}</td>
+                    <td style="padding:12px 15px; text-align:center; font-weight:700; color:#0f172a;">${val}</td>
+                </tr>
+            `;
+        });
+
+        const avg = count > 0 ? (sum/count).toFixed(2) : 0;
+        el('res-avg').innerText = avg; 
 
         tableHTML += `
-            <tr style="border-bottom:1px solid #f1f5f9;">
-                <td style="padding:12px 15px; color:#334155;">${sub[1]}</td>
-                <td style="padding:12px 15px; text-align:center; font-weight:700; color:#0f172a;">${val}</td>
-            </tr>
+            </tbody>
+            <tfoot>
+                <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
+                    <td style="padding:12px 15px; text-align:right; font-weight:700; color:#334155;">JUMLAH</td>
+                    <td style="padding:12px 15px; text-align:center; font-weight:800; color:#2563eb; font-size:1rem;">${sum.toFixed(2)}</td>
+                </tr>
+                <tr style="background:#f8fafc;">
+                    <td style="padding:12px 15px; text-align:right; font-weight:700; color:#334155;">RATA-RATA</td>
+                    <td style="padding:12px 15px; text-align:center; font-weight:800; color:#2563eb; font-size:1rem;">${avg}</td>
+                </tr>
+            </tfoot>
+        </table>
         `;
-    });
 
-    const avg = count > 0 ? (sum/count).toFixed(2) : 0;
-    el('res-avg').innerText = avg; 
+        el('res-table-container').innerHTML = tableHTML;
 
-    tableHTML += `
-        </tbody>
-        <tfoot>
-            <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
-                <td style="padding:12px 15px; text-align:right; font-weight:700; color:#334155;">JUMLAH</td>
-                <td style="padding:12px 15px; text-align:center; font-weight:800; color:#2563eb; font-size:1rem;">${sum.toFixed(2)}</td>
-            </tr>
-            <tr style="background:#f8fafc;">
-                <td style="padding:12px 15px; text-align:right; font-weight:700; color:#334155;">RATA-RATA</td>
-                <td style="padding:12px 15px; text-align:center; font-weight:800; color:#2563eb; font-size:1rem;">${avg}</td>
-            </tr>
-        </tfoot>
-    </table>
-    `;
-
-    el('res-table-container').innerHTML = tableHTML;
-
-    const btnDl = el('btn-download-skl');
-    if(s.link_file_skl && s.link_file_skl.length > 10) {
-        btnDl.classList.remove('hidden');
-        btnDl.onclick = () => window.open(s.link_file_skl, '_blank');
-        btnDl.innerHTML = "📥 DOWNLOAD DOKUMEN SKL";
-    } else {
-        btnDl.classList.add('hidden');
+        const btnDl = el('btn-download-skl');
+        if(s.link_file_skl && s.link_file_skl.length > 10) {
+            btnDl.classList.remove('hidden');
+            btnDl.onclick = () => window.open(s.link_file_skl, '_blank');
+            btnDl.innerHTML = "📥 DOWNLOAD DOKUMEN SKL";
+        } else {
+            btnDl.classList.add('hidden');
+        }
+    } catch (error) {
+        console.error(error);
+        Swal.fire('Error Tabel', 'Gagal merender nilai: ' + error.message, 'error');
     }
 }
 
