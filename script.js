@@ -432,13 +432,17 @@ function openStudentModal() {
     el('m-nama').value = ''; el('m-nis').value = '';
     el('m-tmp').value = ''; el('m-tgl').value = '';
     el('m-jk').value = 'L'; el('m-thn').value = new Date().getFullYear();
-    el('m-kelas').value = '';
+    el('m-kelas').value = ''; 
     el('m-ortu').value = ''; el('m-status').value = 'LULUS';
     el('m-foto').value = ''; el('m-ucapan').value = '';
     el('m-file-skl').value = ''; el('m-preview').style.display = 'none'; el('m-file-status').innerText = '';
+    
+    // Buka kunci NISN untuk Tambah Baru
+    el('m-nisn').removeAttribute('readonly');
+    el('m-nisn').style.background = '#fff';
+
     el('modal-student').classList.add('active');
 }
-
 
 function editStudent(nisn) {
     const s = ALL_DATA.students.find(x => String(x[0]) == String(nisn));
@@ -447,12 +451,17 @@ function editStudent(nisn) {
     el('m-nama').value = s[2]; el('m-nis').value = s[3];
     el('m-tmp').value = s[4]; el('m-tgl').value = s[5]; 
     el('m-jk').value = s[6]; el('m-thn').value = s[12];
-    el('m-kelas').value = s[7];
+    el('m-kelas').value = s[7]; 
     el('m-ortu').value = s[13]; el('m-status').value = s[8];
     el('m-foto').value = s[10]; el('m-ucapan').value = s[11];
     el('m-file-skl').value = s[14] || ''; 
     if(s[10]) { el('m-preview').src = s[10]; el('m-preview').style.display='block'; } else el('m-preview').style.display='none';
     el('m-file-status').innerText = s[14] ? "File SKL Manual sudah ada" : "";
+
+    // KUNCI UTAMA: Kunci NISN saat edit agar Primary Key tidak rusak!
+    el('m-nisn').setAttribute('readonly', 'true');
+    el('m-nisn').style.background = '#e2e8f0'; // Ubah warna jadi abu-abu
+
     el('modal-student').classList.add('active');
 }
 
