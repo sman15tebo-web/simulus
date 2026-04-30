@@ -511,12 +511,40 @@ function openStudentModal() {
     el('modal-student').classList.add('active');
 }
 
+// Fungsi Helper untuk menerjemahkan format tanggal dari Google Sheets
+function formatTgl(dateStr) {
+    if(!dateStr) return '';
+    // Jika formatnya sudah benar (YYYY-MM-DD), langsung kembalikan
+    if(/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr; 
+    
+    try {
+        let d = new Date(dateStr);
+        // Jika Date Javascript gagal membaca formatnya (NaN)
+        if(isNaN(d.getTime())) {
+            let p = dateStr.split(/[\/\-]/);
+            // Cek apakah ini format DD/MM/YYYY dari locale Indonesia
+            if(p.length === 3 && p[2].length === 4) {
+                return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+            }
+            return '';
+        }
+        // Jika berhasil dibaca, susun ulang jadi YYYY-MM-DD
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    } catch(e) { 
+        return ''; 
+    }
+}
+
 function editStudent(nisn) {
     const s = ALL_DATA.students.find(x => String(x[0]) == String(nisn));
     if(!s) return;
     el('m-nisn').value = s[0]; el('m-pass').value = s[1];
     el('m-nama').value = s[2]; el('m-nis').value = s[3];
-    el('m-tmp').value = s[4]; el('m-tgl').value = s[5]; 
+    el('m-tmp').value = s[4]; 
+    
+    // PANGGIL FUNGSI PENERJEMAH TANGGAL DI SINI
+    el('m-tgl').value = formatTgl(s[5]); 
+    
     el('m-jk').value = s[6]; el('m-thn').value = s[12];
     el('m-kelas').value = s[7]; 
     el('m-ortu').value = s[13]; el('m-status').value = s[8];
@@ -525,9 +553,8 @@ function editStudent(nisn) {
     if(s[10]) { el('m-preview').src = s[10]; el('m-preview').style.display='block'; } else el('m-preview').style.display='none';
     el('m-file-status').innerText = s[14] ? "File SKL Manual sudah ada" : "";
 
-    // KUNCI UTAMA: Kunci NISN saat edit agar Primary Key tidak rusak!
     el('m-nisn').setAttribute('readonly', 'true');
-    el('m-nisn').style.background = '#e2e8f0'; // Ubah warna jadi abu-abu
+    el('m-nisn').style.background = '#e2e8f0'; 
 
     el('modal-student').classList.add('active');
 }
