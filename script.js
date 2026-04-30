@@ -147,6 +147,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (logP) logP.addEventListener('keypress', handleEnter);
 });
 
+// --- FUNGSI LOGIN HARUS BERDIRI SENDIRI DI LUAR ---
+async function doLogin() {
+    const u = el('log-u').value;
+    const p = el('log-p').value;
+    
+    if(!u || !p) {
+        return Swal.fire('Peringatan', 'Username dan Password harus diisi', 'warning');
+    }
+
+    showLoader(); 
+    const res = await fetchAPI('processLogin', { u: u, p: p });
+    hideLoader(); 
+    
+    if(res.status === 'success') {
+        CURRENT_USER = res;
+        localStorage.setItem('userData', JSON.stringify(res));
+        el('login-view').classList.add('hidden');
+        
+        if(res.role === 'admin') {
+            localStorage.setItem('adminToken', res.token); 
+            el('admin-layout').classList.remove('hidden');
+            loadAllData(); 
+        } else {
+            el('student-view-layout').classList.remove('hidden');
+            renderStudentView(res);
+        }
+    } else {
+        Swal.fire('Gagal Masuk', res.message || 'Error', 'error');
+    }
+}
 
 // ==========================================
 // 5. LOGIN & LUPA PASSWORD
