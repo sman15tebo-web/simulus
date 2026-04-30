@@ -684,11 +684,15 @@ function loadGradesView(nisn) {
        const g = existingGrades.find(x => String(x[2]) == String(sub[0]));
        const tr = document.createElement('tr');
        // PERBAIKAN: Menambahkan 'data-label' agar di HP muncul tulisan Pengetahuan/Keterampilan
+       const pValue = g ? g[3] : ''; // Kosongkan jika tidak ada agar placeholder muncul
+       const kValue = g ? g[4] : '';
+       const sValue = g ? g[5] : 'B';
+       
        tr.innerHTML = `
            <td>${sub[1]}</td>
-           <td data-label="Pengetahuan"><input type="number" class="form-input grade-p" data-id="${sub[0]}" value="${g ? g[3] : 0}" onkeyup="validateGrade(this)" onchange="validateGrade(this); calcGrades()"></td>
-           <td data-label="Keterampilan"><input type="number" class="form-input grade-k" value="${g ? g[4] : 0}" onkeyup="validateGrade(this)" onchange="validateGrade(this); calcGrades()"></td>
-           <td data-label="Sikap"><input type="text" class="form-input grade-s" value="${g ? g[5] : 'B'}"></td>
+           <td><input type="number" class="form-input grade-p" placeholder="Pengetahuan" data-id="${sub[0]}" value="${pValue}" onkeyup="validateGrade(this)" onchange="validateGrade(this); calcGrades()"></td>
+           <td><input type="number" class="form-input grade-k" placeholder="Keterampilan" value="${kValue}" onkeyup="validateGrade(this)" onchange="validateGrade(this); calcGrades()"></td>
+           <td><input type="text" class="form-input grade-s" placeholder="Sikap" value="${sValue}"></td>
        `;
        tbody.appendChild(tr);
     });
