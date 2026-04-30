@@ -1,7 +1,7 @@
 // ==========================================
 // 1. KONFIGURASI API (HUBUNGAN KE BACKEND)
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbzaylyjLdTBWkZSZck3iatap2ZDr0xNeFw_zbsCTVI5T6NcvgDd2dFf2wi-keWQrEhV/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbx5DNaCPCI30M80JHUm5aA3HKcdXwIeWJdcOffgnkM4GzZ1oWKqScx7SmyrHQJyN4m-aw/exec"; 
 
 /**
  * Fungsi Pengganti google.script.run
