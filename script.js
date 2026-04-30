@@ -725,19 +725,44 @@ el('file-input').addEventListener('change', function(e) {
         reader.readAsDataURL(file);
     }
 });
+
 async function doCrop() {
     if(!CROPPER) return;
+    
     showLoader();
-    const base64 = CROPPER.getCroppedCanvas({ width: 300, imageSmoothingQuality: 'high' }).toDataURL(CROP_MIME, 0.9);
-    const folderId = ALL_DATA.settings['PHOTO_FOLDER_ID'] || '';
-    const ext = CROP_MIME === 'image/png' ? '.png' : '.jpg';
-    const filename = (CROP_MIME === 'image/png' ? "LOGO_" : "IMG_") + Date.now() + ext;
     
-    const res = await fetchAPI('uploadFileToDrive', { base64Data: base64, filename: filename, folderId: folderId, mimeType: CROP_MIME });
+    try {
+        // Tentukan ukuran agar ringan (Logo max 150px, Foto max 200px)
+        const maxWidth = CROP_MIME === 'image/png' ? 150 : 200;
+        
+        // Ambil gambar dari Cropper
+        const canvas = CROPPER.getCroppedCanvas({ 
+            width: maxWidth, 
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high' 
+        });
+
+        if (!canvas) throw new Error("Canvas gagal dimuat");
+
+        // Jadikan teks Base64 langsung dengan kompresi 70%
+        const base64String = canvas.toDataURL(CROP_MIME || 'image/jpeg', 0.7);
+        
+        // Masukkan Base64 ke dalam input teks (INI YANG BIKIN UNDEFINED SEBELUMNYA JIKA SALAH)
+        el(UPLOAD_TARGET_ID).value = base64String;
+        
+        // Tampilkan preview jika yang di-upload adalah foto siswa
+        if(UPLOAD_TARGET_ID === 'm-foto') { 
+            el('m-preview').src = base64String; 
+            el('m-preview').style.display='block'; 
+        }
+        
+        el('modal-crop').classList.remove('active'); 
+    } catch (e) {
+        console.error("Gagal Crop:", e);
+        Swal.fire('Error', 'Gagal memotong gambar', 'error');
+    }
     
-    el(UPLOAD_TARGET_ID).value = res.data;
-    if(UPLOAD_TARGET_ID === 'm-foto') { el('m-preview').src = res.data; el('m-preview').style.display='block'; }
-    el('modal-crop').classList.remove('active'); hideLoader();
+    hideLoader();
 }
 
 function openImport(type) { el('modal-import').classList.add('active'); el('modal-import').setAttribute('data-type', type); }
