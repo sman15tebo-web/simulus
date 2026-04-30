@@ -1168,9 +1168,9 @@ function renderStudentView(res) {
 
     if(s.foto) { el('res-foto').src = s.foto; el('res-foto').style.display='block'; }
 
-    // LOGIKA ANTI-CRASH: Kita hanya percaya pada putusan Server (res.isOpen), bukan jam HP Siswa!
+    // Jika Status dari server menyatakan PENGUMUMAN DIBUKA
     if (res.isOpen === true) {
-        // WAKTU SUDAH BUKA: Tampilkan Hasil
+        // Tampilkan Kotak Terbuka, Sembunyikan Gembok
         el('res-content-locked').classList.add('hidden');
         el('res-content-open').classList.remove('hidden');
 
@@ -1179,28 +1179,37 @@ function renderStudentView(res) {
         el('res-kelas').innerText = s.kelas || '-';
         el('res-ortu').innerText = s.ortu || '-';
 
-        renderStudentResult(res);
-    } else {
-        // WAKTU BELUM BUKA: Tampilkan Hitung Mundur
+        // Panggil fungsi pembuat tabel nilai (Hanya jika data nilai ada)
+        if(res.grades && res.subjects) {
+            renderStudentResult(res);
+        } else {
+            el('res-table-container').innerHTML = '<div style="text-align:center; padding:20px; color:#ef4444;">Data nilai belum tersedia. Jika ini kesalahan, lapor ke Admin.</div>';
+        }
+    } 
+    // Jika Status dari server menyatakan PENGUMUMAN BELUM WAKTUNYA
+    else {
+        // TAMPILKAN GEMBOK (Ini yang sebelumnya terlewat dan bikin layar putih kosong!)
+        el('res-content-locked').classList.remove('hidden');
+        el('res-content-open').classList.add('hidden');
+
         const target = res.targetTime;
         if(COUNTDOWN_INTERVAL) clearInterval(COUNTDOWN_INTERVAL);
 
         const checkTime = () => {
             const now = new Date().getTime();
-            const diff = target - now;
+            const diff = target ? (target - now) : 0;
+            
             if(diff > 0) {
-                el('res-content-locked').classList.remove('hidden');
-                el('res-content-open').classList.add('hidden');
                 const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                 const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                 const sec = Math.floor((diff % (1000 * 60)) / 1000);
                 el('res-timer').innerText = `${h}j ${m}m ${sec}d`;
             } else {
-                // Saat jam HP siswa habis, paksa mereka Reload agar server memberikan data nilainya
                 clearInterval(COUNTDOWN_INTERVAL);
                 el('res-timer').innerHTML = `<span style="font-size:1.1rem; color:#b91c1c;">Waktu Tiba!</span><br><button onclick="window.location.reload()" class="btn btn-danger" style="margin-top:10px; font-size:0.9rem; border-radius:20px; box-shadow:0 4px 10px rgba(239, 68, 68, 0.3);">🔄 Cek Hasil Sekarang</button>`;
             }
         };
+        
         checkTime();
         COUNTDOWN_INTERVAL = setInterval(checkTime, 1000);
     }
