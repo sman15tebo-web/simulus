@@ -828,21 +828,45 @@ function renderSklTable() {
 async function printSingleSKL(nisn, format) {
     showLoader();
     const formData = getSKLFormData(nisn);
-    if (format === 'doc') {
-        const result = await fetchAPI('generateSKLDoc', { formData: formData });
-        hideLoader(); 
-        if(result.data && result.data.status === 'success') { Swal.fire({ title: 'Berhasil', text: 'Dokumen SKL Dibuat', icon: 'success', footer: `<a href="${result.data.url}" target="_blank">Buka Dokumen</a>` }); } 
-        else Swal.fire('Error', result.message || result.data.message, 'error');
-    } else {
-        // Cetak Single PDF = Langsung Download ke Komputer
-        const result = await fetchAPI('generateSKLPdf', { formData: formData });
-        hideLoader(); 
-        if(result.data && result.data.status === 'success') { 
-            const link = document.createElement('a'); 
-            link.href = "data:application/pdf;base64," + result.data.base64; 
-            link.download = result.data.filename; link.click(); 
-        } 
-        else Swal.fire('Error', result.message || result.data.message, 'error');
+    
+    // Agar sinkron dengan fitur folder kelas, PDF dan DOC sama-sama kita proses di Drive
+    const actionName = format === 'doc' ? 'generateSKLDoc' : 'generateSKLPdfToDrive';
+    const result = await fetchAPI(actionName, { formData: formData });
+    
+    hideLoader(); 
+    
+    if(result.data && result.data.status === 'success') { 
+        const driveUrl = result.data.url;
+        let downloadUrl = driveUrl;
+        
+        // Ekstrak ID File dari URL untuk mengubahnya menjadi link Direct Download
+        const match = driveUrl.match(/[-\w]{25,}/);
+        if(match) {
+            const fileId = match[0];
+            if(format === 'doc') {
+                // Link download khusus file Google Docs -> ke .docx
+                downloadUrl = `https://docs.google.com/document/d/${fileId}/export?format=docx`;
+            } else {
+                // Link download khusus file dari Google Drive
+                downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+            }
+        }
+        
+        // Modal Pop-Up dengan 2 Tombol Berwarna
+        Swal.fire({ 
+            title: 'Berhasil Dicetak!', 
+            html: `Dokumen SKL atas nama siswa berhasil dibuat ke dalam folder kelas.<br><br>
+                   <div style="display:flex; justify-content:center; gap:10px; margin-top:20px;">
+                       <a href="${driveUrl}" target="_blank" style="padding:10px 20px; background:#2563eb; color:white; border-radius:10px; text-decoration:none; font-weight:bold; font-size:0.95rem; box-shadow:0 4px 6px rgba(37,99,235,0.2); transition:0.2s;">📂 BUKA DI DRIVE</a>
+                       <a href="${downloadUrl}" style="padding:10px 20px; background:#10b981; color:white; border-radius:10px; text-decoration:none; font-weight:bold; font-size:0.95rem; box-shadow:0 4px 6px rgba(16,185,129,0.2); transition:0.2s;">⬇️ UNDUH FILE</a>
+                   </div>`,
+            icon: 'success', 
+            showConfirmButton: false, // Sembunyikan tombol OK bawaan
+            showCloseButton: true // Munculkan tanda (X) di pojok kanan atas
+        }); 
+    } 
+    else { 
+        Swal.fire('Error', result.message || result.data.message, 'error'); 
     }
 }
 
