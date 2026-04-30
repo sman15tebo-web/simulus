@@ -132,6 +132,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(settings.LOGO_INSTANSI) { el('l-logo-ins').src = settings.LOGO_INSTANSI; el('l-logo-ins').style.display='block'; }
         }
     } catch(e) { console.error("Gagal load setting publik"); }
+
+    // --- 3. EVENT LISTENER UNTUK LOGIN PAKAI ENTER ---
+    const handleEnter = (e) => { 
+        if (e.key === 'Enter') {
+            e.preventDefault(); // Mencegah form reload bawaan browser
+            doLogin(); 
+        }
+    };
+    
+    const logU = el('log-u');
+    const logP = el('log-p');
+    if (logU) logU.addEventListener('keypress', handleEnter);
+    if (logP) logP.addEventListener('keypress', handleEnter);
 });
 
 
