@@ -173,40 +173,53 @@ function forgotPass() {
     });
 }
 
-async function doLogin() {
-    const u = el('log-u').value;
-    const p = el('log-p').value;
-    
-    if(!u || !p) {
-        return Swal.fire('Peringatan', 'Username dan Password harus diisi', 'warning');
-    }
+function doImport() {
+    const file = el('import-file').files[0];
+    if(!file) return Swal.fire('Pilih file dulu');
+    const type = el('modal-import').getAttribute('data-type');
+    showLoader();
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, {type: 'binary'});
+        const sheetName = workbook.SheetNames[0];
+        const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {header: 1});
+        if(json.length > 0) json.shift(); // Buang header Excel
+        
+        // PENTING: Stabilizer Kolom (Agar backend GAS tidak error)
+        let maxCols = 0;
+        if(type === 'students') maxCols = 15;
+        if(type === 'subjects') maxCols = 5;
+        if(type === 'grades') maxCols = 5;
 
-    showLoader(); 
+        const normalizedData = json.map(row => {
+            let newRow = [...row];
+            // Tambahkan string kosong jika kolom kurang
+            while(newRow.length < maxCols) newRow.push('');
+            // Potong jika kelebihan kolom
+            return newRow.slice(0, maxCols); 
+        });
 
-    const res = await fetchAPI('processLogin', { u: u, p: p });
-    
-    hideLoader(); 
-    
-    if(res.status === 'success') {
-        CURRENT_USER = res;
-        
-        // --- SIMPAN SESI KE BROWSER ---
-        localStorage.setItem('userData', JSON.stringify(res));
-        
-        el('login-view').classList.add('hidden');
-        
-        if(res.role === 'admin') {
-            localStorage.setItem('adminToken', res.token); 
-            el('admin-layout').classList.remove('hidden');
-            loadAllData(); 
-        } else {
-            el('student-view-layout').classList.remove('hidden');
-            renderStudentView(res);
+        // Filter baris yang benar-benar kosong
+        const finalData = normalizedData.filter(row => row.join('').trim() !== '');
+
+        if(finalData.length === 0) {
+            hideLoader(); 
+            return Swal.fire('Error', 'File kosong atau format salah!', 'error');
         }
         
-    } else {
-        Swal.fire('Gagal Masuk', res.message || 'Error', 'error');
-    }
+        const res = await fetchAPI('importDataBatch', { t: type, r: finalData });
+        hideLoader(); 
+        el('modal-import').classList.remove('active'); 
+        loadAllData(); 
+        
+        if(res.status === 'success') {
+            Swal.fire('Sukses', res.data, 'success');
+        } else {
+            Swal.fire('Error', res.message, 'error');
+        }
+    };
+    reader.readAsBinaryString(file);
 }
 
 function doLogout() {
@@ -419,11 +432,13 @@ function openStudentModal() {
     el('m-nama').value = ''; el('m-nis').value = '';
     el('m-tmp').value = ''; el('m-tgl').value = '';
     el('m-jk').value = 'L'; el('m-thn').value = new Date().getFullYear();
+    el('m-kelas').value = '';
     el('m-ortu').value = ''; el('m-status').value = 'LULUS';
     el('m-foto').value = ''; el('m-ucapan').value = '';
     el('m-file-skl').value = ''; el('m-preview').style.display = 'none'; el('m-file-status').innerText = '';
     el('modal-student').classList.add('active');
 }
+
 
 function editStudent(nisn) {
     const s = ALL_DATA.students.find(x => String(x[0]) == String(nisn));
@@ -432,6 +447,7 @@ function editStudent(nisn) {
     el('m-nama').value = s[2]; el('m-nis').value = s[3];
     el('m-tmp').value = s[4]; el('m-tgl').value = s[5]; 
     el('m-jk').value = s[6]; el('m-thn').value = s[12];
+    el('m-kelas').value = s[7];
     el('m-ortu').value = s[13]; el('m-status').value = s[8];
     el('m-foto').value = s[10]; el('m-ucapan').value = s[11];
     el('m-file-skl').value = s[14] || ''; 
@@ -448,7 +464,8 @@ async function handleSaveStudent(e) {
     const processSave = async (fileUrl) => {
         const formData = {
           nisn: el('m-nisn').value, password: el('m-pass').value, nama: el('m-nama').value, nis: el('m-nis').value,
-          tempat_lahir: el('m-tmp').value, tgl_lahir: el('m-tgl').value, jk: el('m-jk').value, kelas: 'XII', 
+          tempat_lahir: el('m-tmp').value, tgl_lahir: el('m-tgl').value, jk: el('m-jk').value, 
+          kelas: el('m-kelas').value,
           status: el('m-status').value, link_foto: el('m-foto').value, ucapan: el('m-ucapan').value,
           thn_lulus: el('m-thn').value, nama_ortu: el('m-ortu').value, link_file_skl: fileUrl || el('m-file-skl').value
         };
