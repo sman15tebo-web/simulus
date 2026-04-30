@@ -458,14 +458,22 @@ function editStudent(nisn) {
 
 async function handleSaveStudent(e) {
     e.preventDefault();
+    
+    // --- VALIDASI NISN WAJIB TEPAT 10 ANGKA ---
+    const nisnVal = el('m-nisn').value.trim();
+    if(!/^\d{10}$/.test(nisnVal)) {
+        return Swal.fire('Peringatan', 'NISN wajib berisi tepat 10 angka!', 'warning');
+    }
+
     showLoader();
     const fileInput = el('m-file-skl-input');
     
     const processSave = async (fileUrl) => {
         const formData = {
-          nisn: el('m-nisn').value, password: el('m-pass').value, nama: el('m-nama').value, nis: el('m-nis').value,
+          nisn: nisnVal, // Menggunakan NISN yang sudah divalidasi
+          password: el('m-pass').value, nama: el('m-nama').value, nis: el('m-nis').value,
           tempat_lahir: el('m-tmp').value, tgl_lahir: el('m-tgl').value, jk: el('m-jk').value, 
-          kelas: el('m-kelas').value,
+          kelas: el('m-kelas').value, 
           status: el('m-status').value, link_foto: el('m-foto').value, ucapan: el('m-ucapan').value,
           thn_lulus: el('m-thn').value, nama_ortu: el('m-ortu').value, link_file_skl: fileUrl || el('m-file-skl').value
         };
@@ -483,14 +491,14 @@ async function handleSaveStudent(e) {
         if(file.size > 409600) { hideLoader(); return Swal.fire('File Terlalu Besar', 'Ukuran file SKL maksimal 400Kb', 'error'); }
         const reader = new FileReader();
         reader.onload = async function(e) {
-            const filename = "FILE_SKL_" + el('m-nisn').value + ".pdf";
+            const filename = "FILE_SKL_" + nisnVal + ".pdf";
             const upRes = await fetchAPI('uploadFileToDrive', {
                 base64Data: e.target.result, 
                 filename: filename, 
                 folderId: ALL_DATA.settings['SKL_FOLDER_ID'], 
                 mimeType: file.type
             });
-            processSave(upRes.data); // upRes.data returns the direct URL or message string
+            processSave(upRes.data); 
         };
         reader.readAsDataURL(file);
     } else { 
@@ -881,11 +889,73 @@ function doImport() {
         const data = e.target.result;
         const workbook = XLSX.read(data, {type: 'binary'});
         const sheetName = workbook.SheetNames[0];
-        const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {header: 1});
-        if(json.length > 0) json.shift();
         
-        const res = await fetchAPI('importDataBatch', { t: type, r: json });
-        hideLoader(); el('modal-import').classList.remove('active'); loadAllData(); Swal.fire('Sukses', res.data, 'success');
+        // PENTING: Tambahkan raw: false agar format teks bawaan Excel dipertahankan
+        const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {header: 1, raw: false});
+        if(json.length > 0) json.shift(); 
+        
+        let maxCols = 0;
+        if(type === 'students') maxCols = 15;
+        if(type === 'subjects') maxCols = 5;
+        if(type === 'grades') maxCols = 5;
+
+        const normalizedData = json.map(row => {
+            let newRow = [...row];
+            while(newRow.length < maxCols) newRow.push('');
+            newRow = newRow.slice(0, maxCols); 
+            
+            // --- TRIK MENGEMBALIKAN ANGKA 0 DI DEPAN NISN ---
+            if (type === 'students' && newRow[0]) {
+                // Ambil hanya angkanya saja, buang karakter aneh jika ada
+                let nisnStr = String(newRow[0]).replace(/\D/g, ''); 
+                
+                // Jika Excel menghapus 0 di depan (sehingga cuma 9 atau 8 angka), tambahkan 0 otomatis!
+                if (nisnStr.length > 0 && nisnStr.length < 10) {
+                    newRow[0] = nisnStr.padStart(10, '0');
+                } else {
+                    newRow[0] = nisnStr;
+                }
+            }
+            
+            // --- TRIK MENGEMBALIKAN ANGKA 0 DI DEPAN NISN UNTUK IMPORT NILAI ---
+            if (type === 'grades' && newRow[0]) {
+                let nisnStr = String(newRow[0]).replace(/\D/g, ''); 
+                if (nisnStr.length > 0 && nisnStr.length < 10) {
+                    newRow[0] = nisnStr.padStart(10, '0');
+                } else {
+                    newRow[0] = nisnStr;
+                }
+            }
+
+            return newRow;
+        });
+
+        const finalData = normalizedData.filter(row => row.join('').trim() !== '');
+
+        if(finalData.length === 0) {
+            hideLoader(); 
+            return Swal.fire('Error', 'File kosong atau format salah!', 'error');
+        }
+        
+        // --- VALIDASI BLOKIR JIKA ADA NISN > 10 ANGKA ATAU MASIH SALAH ---
+        if (type === 'students' || type === 'grades') {
+            const invalidNISN = finalData.find(r => r[0].length !== 10);
+            if (invalidNISN) {
+                hideLoader();
+                return Swal.fire('Error Import', `Gagal! Ditemukan NISN yang panjangnya tidak 10 angka: ${invalidNISN[0]}. Silakan perbaiki file Anda.`, 'error');
+            }
+        }
+        
+        const res = await fetchAPI('importDataBatch', { t: type, r: finalData });
+        hideLoader(); 
+        el('modal-import').classList.remove('active'); 
+        loadAllData(); 
+        
+        if(res.status === 'success') {
+            Swal.fire('Sukses', res.data, 'success');
+        } else {
+            Swal.fire('Error', res.message, 'error');
+        }
     };
     reader.readAsBinaryString(file);
 }
