@@ -250,6 +250,7 @@ function nav(page) {
     el('page-'+page).classList.remove('hidden');
     
     if(page === 'grades') populateStudentSelects();
+    if(page === 'skl') populateSklClassFilter(); 
     if(page === 'dashboard') renderDashboardCharts(); 
     if(window.innerWidth <= 768) { 
         toggleSidebar(); 
@@ -275,15 +276,51 @@ async function loadAllData() {
 }
 
 function populateStudentSelects() {
-    const select = el('grade-sel-siswa');
-    if(!select) return;
-    select.innerHTML = '<option value="">-- Pilih Siswa --</option>';
-    ALL_DATA.students.forEach(s => {
+    const selKelas = el('grade-sel-kelas');
+    if(!selKelas) return;
+    
+    // 1. Dapatkan daftar kelas yang unik dari data siswa
+    const uniqueClasses = [...new Set(ALL_DATA.students.map(s => String(s[7]).trim()).filter(c => c !== ''))].sort();
+    
+    // 2. Isi dropdown kelas
+    selKelas.innerHTML = '<option value="">-- Semua Kelas --</option>';
+    uniqueClasses.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.innerText = c;
+        selKelas.appendChild(opt);
+    });
+
+    // 3. Panggil fungsi filter untuk mengisi dropdown siswa awal
+    filterGradeStudents();
+}
+
+function filterGradeStudents() {
+    const selectedClass = el('grade-sel-kelas').value;
+    const selSiswa = el('grade-sel-siswa');
+    
+    selSiswa.innerHTML = '<option value="">-- Pilih Siswa --</option>';
+    
+    let filteredStudents = ALL_DATA.students;
+    
+    // Jika ada kelas yang dipilih, filter data siswa
+    if (selectedClass !== '') {
+        filteredStudents = filteredStudents.filter(s => String(s[7]).trim() === selectedClass);
+    }
+
+    // Urutkan siswa berdasarkan nama (Alfabetis) agar mudah dicari
+    filteredStudents.sort((a, b) => String(a[2]).localeCompare(String(b[2])));
+
+    // Isi dropdown siswa
+    filteredStudents.forEach(s => {
         const opt = document.createElement('option');
         opt.value = s[0]; // NISN
         opt.innerText = s[2] + " (" + s[7] + ")"; // Nama (Kelas)
-        select.appendChild(opt);
+        selSiswa.appendChild(opt);
     });
+    
+    // Sembunyikan form nilai setiap kali ganti kelas agar tidak salah input
+    el('grade-container').classList.add('hidden');
 }
 
 function toggleSidebar() {
@@ -477,15 +514,23 @@ async function handleSaveStudent(e) {
     showLoader();
     const fileInput = el('m-file-skl-input');
     
-    const processSave = async (fileUrl) => {
-        const formData = {
-          nisn: nisnVal, // Menggunakan NISN yang sudah divalidasi
-          password: el('m-pass').value, nama: el('m-nama').value, nis: el('m-nis').value,
-          tempat_lahir: el('m-tmp').value, tgl_lahir: el('m-tgl').value, jk: el('m-jk').value, 
-          kelas: el('m-kelas').value, 
-          status: el('m-status').value, link_foto: el('m-foto').value, ucapan: el('m-ucapan').value,
-          thn_lulus: el('m-thn').value, nama_ortu: el('m-ortu').value, link_file_skl: fileUrl || el('m-file-skl').value
-        };
+        const processSave = async (fileUrl) => {
+            const formData = {
+              nisn: nisnVal,
+              password: el('m-pass').value, 
+              nama: String(el('m-nama').value).toUpperCase(), // <--- OTOMATIS KAPITAL
+              nis: el('m-nis').value,
+              tempat_lahir: String(el('m-tmp').value).toUpperCase(), // <--- OTOMATIS KAPITAL
+              tgl_lahir: el('m-tgl').value, 
+              jk: el('m-jk').value, 
+              kelas: String(el('m-kelas').value).toUpperCase(), // <--- OTOMATIS KAPITAL (Opsional, agar format kelas rapi)
+              status: el('m-status').value, 
+              link_foto: el('m-foto').value, 
+              ucapan: el('m-ucapan').value,
+              thn_lulus: el('m-thn').value, 
+              nama_ortu: String(el('m-ortu').value).toUpperCase(), // <--- OTOMATIS KAPITAL
+              link_file_skl: fileUrl || el('m-file-skl').value
+            };
         
         const res = await fetchAPI('adminSaveStudent', { data: formData });
         loadAllData(); 
@@ -652,6 +697,23 @@ async function saveGrades() {
 // ==========================================
 // 9. SKL GENERATOR & EXCEL IMPORT
 // ==========================================
+
+// Logika Tampilan Tab
+function switchSklTab(tab) {
+    if(tab === 'setting') {
+        el('skl-section-setting').classList.remove('hidden');
+        el('skl-section-siswa').classList.add('hidden');
+        el('tab-btn-setting').className = 'btn btn-primary';
+        el('tab-btn-siswa').className = 'btn btn-outline';
+    } else {
+        el('skl-section-setting').classList.add('hidden');
+        el('skl-section-siswa').classList.remove('hidden');
+        el('tab-btn-setting').className = 'btn btn-outline';
+        el('tab-btn-siswa').className = 'btn btn-primary';
+        renderSklTable();
+    }
+}
+
 async function saveSKLSettingsJS() {
     const form = { no_surat: el('skl-no').value, tempat_surat: el('skl-tempat').value, tgl_surat: el('skl-tgl').value, dasar1: el('skl-d1').value, dasar2: el('skl-d2').value, kepsek_nama: el('skl-kepsek').value, kepsek_nip: el('skl-nip').value, kepsek_pangkat: el('skl-pangkat').value, tembusan: el('skl-cc').value };
     showLoader(); 
@@ -659,99 +721,129 @@ async function saveSKLSettingsJS() {
     loadAllData(); hideLoader(); Toast.fire('Disimpan', 'Pengaturan SKL disimpan', 'success');
 }
 
-function getSKLFormData() {
-    return { nisn: el('skl-siswa').value, no_surat: el('skl-no').value, tempat_surat: el('skl-tempat').value, tgl_surat: el('skl-tgl').value, dasar1: el('skl-d1').value, dasar2: el('skl-d2').value, kepsek_nama: el('skl-kepsek').value, kepsek_nip: el('skl-nip').value, kepsek_pangkat: el('skl-pangkat').value, tembusan: el('skl-cc').value };
+function getSKLFormData(nisn) {
+    // Sekarang menerima nisn langsung dari tombol, bukan dari inputan manual
+    return { nisn: nisn, no_surat: el('skl-no').value, tempat_surat: el('skl-tempat').value, tgl_surat: el('skl-tgl').value, dasar1: el('skl-d1').value, dasar2: el('skl-d2').value, kepsek_nama: el('skl-kepsek').value, kepsek_nip: el('skl-nip').value, kepsek_pangkat: el('skl-pangkat').value, tembusan: el('skl-cc').value };
 }
 
-async function generateSKL() {
-    if(!el('skl-siswa').value) return Swal.fire('Pilih Siswa dulu');
-    showLoader();
-    const result = await fetchAPI('generateSKLDoc', { formData: getSKLFormData() });
-    hideLoader(); 
-    const res = result.data;
-    if(res && res.status === 'success') { Swal.fire({ title: 'Berhasil', text: 'Dokumen SKL Dibuat', icon: 'success', footer: `<a href="${res.url}" target="_blank">Buka Dokumen</a>` }); } 
-    else Swal.fire('Error', res.message, 'error');
-}
-
-async function generatePDF() {
-    if(!el('skl-siswa').value) return Swal.fire('Pilih Siswa dulu');
-    showLoader();
-    const result = await fetchAPI('generateSKLPdf', { formData: getSKLFormData() });
-    hideLoader(); 
-    const res = result.data;
-    if(res && res.status === 'success') { 
-        const link = document.createElement('a'); 
-        link.href = "data:application/pdf;base64," + res.base64; 
-        link.download = res.filename; link.click(); 
-    } 
-    else Swal.fire('Error', res.message, 'error');
-}
-
-function filterSklStudents() {
-  var input = el('skl-search-input').value.toLowerCase();
-  var select = el('skl-siswa');
-  var students = ALL_DATA.students; 
-  select.innerHTML = '';
-  if (input.length < 1) { select.innerHTML = '<option value="">-- Masukkan Nama/NISN --</option>'; return; }
-  var matches = students.filter(function(s) {
-    var nisn = s[0].toString().toLowerCase();
-    var nama = s[2].toString().toLowerCase();
-    return nisn.indexOf(input) > -1 || nama.indexOf(input) > -1;
-  });
-  if (matches.length > 0) {
-    matches.forEach(function(row) {
-      var opt = document.createElement('option');
-      opt.value = row[0]; 
-      opt.innerHTML = row[2] + " (" + row[0] + ")"; 
-      select.appendChild(opt);
+function populateSklClassFilter() {
+    const selKelas = el('skl-filter-kelas');
+    if(!selKelas) return;
+    const uniqueClasses = [...new Set(ALL_DATA.students.map(s => String(s[7]).trim()).filter(c => c !== ''))].sort();
+    
+    selKelas.innerHTML = '<option value="">-- Tampilkan Semua Kelas --</option>';
+    uniqueClasses.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.innerText = c;
+        selKelas.appendChild(opt);
     });
-  } else { select.innerHTML = '<option value="">Data tidak ditemukan...</option>'; }
+    renderSklTable();
 }
 
-function liveSearchSkl() {
-  const input = el('skl-search-input').value.toLowerCase();
-  const resultsDiv = el('skl-search-results');
-  const targetHidden = el('skl-siswa');
-  const students = ALL_DATA.students;
-  
-  resultsDiv.innerHTML = '';
-  if (input.length < 1) { resultsDiv.style.display = 'none'; targetHidden.value = ''; return; }
-
-  const matches = students.filter(s => s[2].toLowerCase().includes(input) || s[0].toString().includes(input));
-  const topTen = matches.slice(0, 10);
-
-  if (topTen.length > 0) {
-    topTen.forEach(s => {
-      const item = document.createElement('div');
-      item.style.padding = '10px 15px'; item.style.cursor = 'pointer'; item.style.borderBottom = '1px solid #f1f5f9'; item.style.fontSize = '0.9rem';
-      item.innerHTML = `<strong>${s[2]}</strong> <span style="color: #64748b;">(${s[0]})</span>`;
-      item.onclick = function() { selectSklStudent(s[2], s[0]); };
-      item.onmouseover = () => item.style.background = '#f8fafc'; item.onmouseout = () => item.style.background = 'white';
-      resultsDiv.appendChild(item);
-    });
-    if (matches.length > 10) {
-      const info = document.createElement('div');
-      info.style.padding = '8px 15px'; info.style.fontSize = '0.75rem'; info.style.color = '#94a3b8'; info.style.background = '#f8fafc'; info.style.textAlign = 'center';
-      info.innerText = "Menampilkan 10 dari " + matches.length + " hasil. Persempit pencarian...";
-      resultsDiv.appendChild(info);
+function renderSklTable() {
+    const selectedClass = el('skl-filter-kelas').value;
+    const tbody = el('tbl-skl-siswa').querySelector('tbody');
+    tbody.innerHTML = '';
+    
+    let filtered = ALL_DATA.students;
+    if (selectedClass !== '') {
+        filtered = filtered.filter(s => String(s[7]).trim() === selectedClass);
     }
-    resultsDiv.style.display = 'block';
-  } else {
-    resultsDiv.innerHTML = '<div style="padding:10px; color:#94a3b8;">Tidak ada hasil...</div>';
-    resultsDiv.style.display = 'block';
-  }
+    
+    filtered.sort((a, b) => String(a[2]).localeCompare(String(b[2]))); // Urut Alfabet
+    
+    filtered.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${row[0]}</td>
+            <td><b>${row[2]}</b></td>
+            <td>${row[6]}</td>
+            <td>${row[7]}</td>
+            <td style="white-space:nowrap;">
+                <button class="btn btn-danger btn-sm" onclick="printSingleSKL('${row[0]}', 'pdf')">PDF</button>
+                <button class="btn btn-primary btn-sm" onclick="printSingleSKL('${row[0]}', 'doc')">DOC</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
 }
 
-function selectSklStudent(nama, nisn) {
-  el('skl-search-input').value = nama; 
-  el('skl-siswa').value = nisn;        
-  el('skl-search-results').style.display = 'none'; 
+async function printSingleSKL(nisn, format) {
+    showLoader();
+    const formData = getSKLFormData(nisn);
+    if (format === 'doc') {
+        const result = await fetchAPI('generateSKLDoc', { formData: formData });
+        hideLoader(); 
+        if(result.data && result.data.status === 'success') { Swal.fire({ title: 'Berhasil', text: 'Dokumen SKL Dibuat', icon: 'success', footer: `<a href="${result.data.url}" target="_blank">Buka Dokumen</a>` }); } 
+        else Swal.fire('Error', result.message || result.data.message, 'error');
+    } else {
+        // Cetak Single PDF = Langsung Download ke Komputer
+        const result = await fetchAPI('generateSKLPdf', { formData: formData });
+        hideLoader(); 
+        if(result.data && result.data.status === 'success') { 
+            const link = document.createElement('a'); 
+            link.href = "data:application/pdf;base64," + result.data.base64; 
+            link.download = result.data.filename; link.click(); 
+        } 
+        else Swal.fire('Error', result.message || result.data.message, 'error');
+    }
 }
 
-document.addEventListener('click', function(e) {
-  if (e.target.id !== 'skl-search-input') { el('skl-search-results').style.display = 'none'; }
-});
+// FUNGSI SUPER: CETAK MASSAL OTOMATIS (SMART BATCHING)
+async function batchPrintSKL(format) {
+    const selectedClass = el('skl-filter-kelas').value;
+    if (!selectedClass) return Swal.fire('Pilih Kelas', 'Silakan pilih kelas pada kolom filter terlebih dahulu!', 'warning');
+    
+    const students = ALL_DATA.students.filter(s => String(s[7]).trim() === selectedClass);
+    if (students.length === 0) return Swal.fire('Kosong', 'Tidak ada siswa di kelas ini', 'info');
 
+    const confirm = await Swal.fire({
+        title: `Cetak ${students.length} SKL?`,
+        text: `Sistem akan memproses ${students.length} file ${format.toUpperCase()} secara bergantian dan menyimpannya ke Folder Google Drive.`,
+        icon: 'question',
+        showCancelButton: true, confirmButtonText: 'Ya, Mulai!', cancelButtonText: 'Batal'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    Swal.fire({
+        title: 'Memproses Batch...',
+        html: `Menyiapkan Data...<br><br><small>Mohon jangan tutup atau muat ulang halaman ini.</small>`,
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    // Panggil fungsi PDF Drive yang baru atau fungsi Doc bawaan
+    const actionName = format === 'pdf' ? 'generateSKLPdfToDrive' : 'generateSKLDoc';
+
+    for (let i = 0; i < students.length; i++) {
+        const nisn = students[i][0];
+        Swal.getHtmlContainer().innerHTML = `Mencetak Siswa: <b>${students[i][2]}</b><br>Progres: <b>${i + 1}</b> / ${students.length}<br><br><small>Menyimpan ke Google Drive...</small>`;
+        
+        const formData = getSKLFormData(nisn);
+        const res = await fetchAPI(actionName, { formData: formData });
+        
+        if (res.data && res.data.status === 'success') { successCount++; } 
+        else { failCount++; console.error(`Gagal: ${nisn}`, res); }
+    }
+
+    let folderUrl = "https://drive.google.com/drive/my-drive";
+    if (ALL_DATA.settings['SKL_FOLDER_ID']) folderUrl = `https://drive.google.com/drive/folders/${ALL_DATA.settings['SKL_FOLDER_ID']}`;
+
+    Swal.fire({
+        title: 'Selesai!',
+        html: `Berhasil: <b>${successCount}</b><br>Gagal: <b>${failCount}</b><br><br>Semua file telah disimpan di Folder SKL Google Drive Anda.`,
+        icon: successCount > 0 ? 'success' : 'warning',
+        confirmButtonText: 'Buka Folder Drive',
+        showCancelButton: true, cancelButtonText: 'Tutup'
+    }).then((result) => {
+        if (result.isConfirmed) window.open(folderUrl, '_blank');
+        loadAllData(); // Refresh data supaya link manual terupdate
+    });
+}
 
 // ==========================================
 // 10. SYSTEM SETTINGS
@@ -913,20 +1005,25 @@ function doImport() {
             while(newRow.length < maxCols) newRow.push('');
             newRow = newRow.slice(0, maxCols); 
             
-            // --- TRIK MENGEMBALIKAN ANGKA 0 DI DEPAN NISN ---
-            if (type === 'students' && newRow[0]) {
-                // Ambil hanya angkanya saja, buang karakter aneh jika ada
-                let nisnStr = String(newRow[0]).replace(/\D/g, ''); 
-                
-                // Jika Excel menghapus 0 di depan (sehingga cuma 9 atau 8 angka), tambahkan 0 otomatis!
-                if (nisnStr.length > 0 && nisnStr.length < 10) {
-                    newRow[0] = nisnStr.padStart(10, '0');
-                } else {
-                    newRow[0] = nisnStr;
+            // --- KAPITALISASI OTOMATIS & PERBAIKAN NISN ---
+            if (type === 'students') {
+                if (newRow[2]) newRow[2] = String(newRow[2]).toUpperCase(); // Nama
+                if (newRow[4]) newRow[4] = String(newRow[4]).toUpperCase(); // Tempat Lahir
+                if (newRow[7]) newRow[7] = String(newRow[7]).toUpperCase(); // Kelas
+                if (newRow[13]) newRow[13] = String(newRow[13]).toUpperCase(); // Ortu
+
+                // Trik mengembalikan angka 0 di depan NISN
+                if (newRow[0]) {
+                    let nisnStr = String(newRow[0]).replace(/\D/g, ''); 
+                    if (nisnStr.length > 0 && nisnStr.length < 10) {
+                        newRow[0] = nisnStr.padStart(10, '0');
+                    } else {
+                        newRow[0] = nisnStr;
+                    }
                 }
             }
             
-            // --- TRIK MENGEMBALIKAN ANGKA 0 DI DEPAN NISN UNTUK IMPORT NILAI ---
+            // Trik mengembalikan angka 0 di depan NISN untuk input nilai
             if (type === 'grades' && newRow[0]) {
                 let nisnStr = String(newRow[0]).replace(/\D/g, ''); 
                 if (nisnStr.length > 0 && nisnStr.length < 10) {
