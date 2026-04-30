@@ -95,6 +95,28 @@ function togglePass(id, icon) {
 // 4. INIT (AUTO FETCH DATA PUBLIK SAAT HALAMAN DIBUKA)
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
+    // --- 1. CEK SESI LOGIN YANG TERSIMPAN ---
+    const savedUser = localStorage.getItem('userData');
+    if (savedUser) {
+        try {
+            CURRENT_USER = JSON.parse(savedUser);
+            el('login-view').classList.add('hidden'); // Sembunyikan layar login
+            
+            if (CURRENT_USER.role === 'admin') {
+                el('admin-layout').classList.remove('hidden');
+                loadAllData();
+            } else {
+                el('student-view-layout').classList.remove('hidden');
+                renderStudentView(CURRENT_USER);
+            }
+        } catch (e) {
+            // Jika data corrupt, hapus sesi
+            localStorage.removeItem('userData');
+            localStorage.removeItem('adminToken');
+        }
+    }
+
+    // --- 2. TARIK DATA PUBLIK (LOGO & NAMA SEKOLAH) ---
     try {
         const res = await fetchAPI('getPublicSettings');
         if (res && res.status === 'success') {
@@ -155,10 +177,13 @@ async function doLogin() {
     if(res.status === 'success') {
         CURRENT_USER = res;
         
+        // --- SIMPAN SESI KE BROWSER ---
+        localStorage.setItem('userData', JSON.stringify(res));
+        
         el('login-view').classList.add('hidden');
         
         if(res.role === 'admin') {
-            localStorage.setItem('adminToken', res.token); // Simpan token sesi
+            localStorage.setItem('adminToken', res.token); 
             el('admin-layout').classList.remove('hidden');
             loadAllData(); 
         } else {
@@ -173,7 +198,11 @@ async function doLogin() {
 
 function doLogout() {
     CURRENT_USER = null;
-    localStorage.removeItem('adminToken'); // Hapus token
+    
+    // --- HAPUS SEMUA SESI DARI BROWSER ---
+    localStorage.removeItem('adminToken'); 
+    localStorage.removeItem('userData'); 
+    
     ALL_DATA = { students: [], subjects: [], grades: [], settings: {} };
     el('admin-layout').classList.add('hidden');
     el('student-view-layout').classList.add('hidden');
