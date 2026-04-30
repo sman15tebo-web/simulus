@@ -530,15 +530,25 @@ function renderSubjects(data) {
     const tbody = el('tbl-subjects').querySelector('tbody'); tbody.innerHTML = '';
     data.forEach(row => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td><button class="btn btn-danger btn-sm" onclick='deleteMapel("${row[0]}")'>Hapus</button></td><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td>`;
+      // Menampilkan data kelas (jika kosong, tampilkan badge 'Semua Kelas')
+      const targetKelas = row[4] ? row[4] : '<span style="color:#10b981;font-weight:bold;">Semua Kelas</span>';
+      
+      tr.innerHTML = `<td><button class="btn btn-danger btn-sm" onclick='deleteMapel("${row[0]}")'>Hapus</button></td><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${targetKelas}</td>`;
       tbody.appendChild(tr);
     });
 }
-function openMapelModal() { el('modal-mapel').classList.add('active'); el('mp-id').value=''; el('mp-nama').value=''; }
+
+function openMapelModal() { 
+    el('modal-mapel').classList.add('active'); 
+    el('mp-id').value=''; 
+    el('mp-nama').value=''; 
+    el('mp-kelas').value=''; // Kosongkan inputan baru
+}
 
 async function handleSaveMapel(e) { 
     e.preventDefault(); showLoader(); 
-    const payload = { i: el('mp-id').value, n: el('mp-nama').value, k: el('mp-kkm').value, c: el('mp-cat').value };
+    // Tambahkan payload kls
+    const payload = { i: el('mp-id').value, n: el('mp-nama').value, k: el('mp-kkm').value, c: el('mp-cat').value, kls: el('mp-kelas').value };
     await fetchAPI('adminSaveMapel', payload);
     loadAllData(); 
     el('modal-mapel').classList.remove('active'); 
@@ -558,9 +568,20 @@ function loadGradesView(nisn) {
     SELECTED_STUDENT_ID = nisn;
     const student = ALL_DATA.students.find(x => String(x[0]) == String(nisn));
     el('grade-student-name').innerText = student ? student[2] : '';
+    
+    // --- FILTER MAPEL BERDASARKAN KELAS SISWA ---
+    const studentClass = student ? String(student[7]).trim() : '';
+    const filteredSubjects = ALL_DATA.subjects.filter(sub => {
+        const subClass = sub[4] ? String(sub[4]).trim() : '';
+        if(subClass === '') return true; // Mapel Umum
+        return subClass.split(',').map(x=>x.trim()).includes(studentClass);
+    });
+
     const existingGrades = ALL_DATA.grades.filter(g => String(g[1]) == String(nisn));
     const tbody = el('tbl-grades-input').querySelector('tbody'); tbody.innerHTML = '';
-    ALL_DATA.subjects.forEach(sub => {
+    
+    // Looping menggunakan mapel yang sudah difilter
+    filteredSubjects.forEach(sub => {
        const g = existingGrades.find(x => String(x[2]) == String(sub[0]));
        const tr = document.createElement('tr');
        tr.innerHTML = `<td>${sub[1]}</td><td><input type="number" class="form-input grade-p" data-id="${sub[0]}" value="${g ? g[3] : 0}" onkeyup="validateGrade(this)" onchange="validateGrade(this); calcGrades()"></td><td><input type="number" class="form-input grade-k" value="${g ? g[4] : 0}" onkeyup="validateGrade(this)" onchange="validateGrade(this); calcGrades()"></td><td><input type="text" class="form-input grade-s" value="${g ? g[5] : 'B'}"></td>`;
@@ -569,6 +590,7 @@ function loadGradesView(nisn) {
     el('grade-container').classList.remove('hidden');
     calcGrades();
 }
+
 function validateGrade(input) {
     let val = parseFloat(input.value);
     if(val > 100) { Swal.fire('Error', 'Nilai maksimal adalah 100!', 'warning'); input.value = ''; return; }
@@ -818,7 +840,7 @@ function downloadTemplate() {
         csv = "NISN,PASSWORD,NAMA,NIS,TEMPAT_LAHIR,TGL_LAHIR(YYYY-MM-DD),JK(L/P),KELAS,STATUS,LINK_SKL(KOSONGKAN),LINK_FOTO(KOSONGKAN),UCAPAN,THN_LULUS,NAMA_ORTU,LINK_FILE_MANUAL(KOSONGKAN)";
     }
     else if(type == 'subjects') {
-        csv = "ID,NAMA_MAPEL,KKM,KATEGORI";
+        csv = "ID,NAMA_MAPEL,KKM,KATEGORI,KELAS_TUJUAN(KOSONGKAN JIKA UMUM)";
     }
     else if(type == 'grades') {
         csv = "NISN,ID_MAPEL,PENGETAHUAN,KETERAMPILAN,SIKAP";
@@ -910,12 +932,21 @@ function renderStudentResult(res) {
     el('res-status').className = 'p-status ' + (s.status == 'LULUS' ? 'status-lulus' : 'status-gagal');
     el('res-ucapan').innerText = s.ucapan || (s.status == 'LULUS' ? 'Selamat, Anda Lulus!' : 'Mohon maaf, Anda belum lulus.');
     
+    // --- FILTER MAPEL UNTUK TAMPILAN SISWA ---
+    const studentClass = String(s.kelas).trim();
+    const filteredSubjects = subjects.filter(sub => {
+        const subClass = sub[4] ? String(sub[4]).trim() : '';
+        if(subClass === '') return true;
+        return subClass.split(',').map(x=>x.trim()).includes(studentClass);
+    });
+
     let sum = 0, count = 0;
-    subjects.forEach((sub, i) => {
+    filteredSubjects.forEach((sub, i) => {
         const g = grades.find(x => String(x[2]) == String(sub[0]));
         const val = g ? parseFloat(g[3]) : 0;
         sum += val; count++;
     });
+
     const avg = count > 0 ? (sum/count).toFixed(2) : 0;
     el('res-avg').innerText = avg;
 
