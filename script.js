@@ -766,16 +766,30 @@ async function doCrop() {
 }
 
 function openImport(type) { el('modal-import').classList.add('active'); el('modal-import').setAttribute('data-type', type); }
+
 function downloadTemplate() {
     const type = el('modal-import').getAttribute('data-type');
     let csv = "";
-    if(type == 'students') csv = "NISN,PASSWORD,NAMA,NIS,TEMPAT_LAHIR,TGL_LAHIR(YYYY-MM-DD),JK(L/P),KELAS,STATUS(LULUS/TIDAK),UCAPAN";
-    else if(type == 'subjects') csv = "ID,NAMA_MAPEL,KKM,KATEGORI";
-    else if(type == 'grades') csv = "NISN,ID_MAPEL,PENGETAHUAN,KETERAMPILAN,SIKAP";
+    
+    if(type == 'students') {
+        // Urutan ini SEKARANG COCOK 100% dengan kolom A sampai O di Google Sheets
+        csv = "NISN,PASSWORD,NAMA,NIS,TEMPAT_LAHIR,TGL_LAHIR(YYYY-MM-DD),JK(L/P),KELAS,STATUS,LINK_SKL(KOSONGKAN),LINK_FOTO(KOSONGKAN),UCAPAN,THN_LULUS,NAMA_ORTU,LINK_FILE_MANUAL(KOSONGKAN)";
+    }
+    else if(type == 'subjects') {
+        csv = "ID,NAMA_MAPEL,KKM,KATEGORI";
+    }
+    else if(type == 'grades') {
+        csv = "NISN,ID_MAPEL,PENGETAHUAN,KETERAMPILAN,SIKAP";
+    }
+    
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'template_'+type+'.csv'; a.click();
+    const a = document.createElement('a'); 
+    a.href = url; 
+    a.download = 'template_' + type + '.csv'; 
+    a.click();
 }
+
 function doImport() {
     const file = el('import-file').files[0];
     if(!file) return Swal.fire('Pilih file dulu');
