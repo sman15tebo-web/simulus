@@ -1242,12 +1242,13 @@ function renderStudentResult(res) {
 
         let sum = 0, count = 0;
         
+        // TABEL KECIL KHUSUS POP-UP (Font 0.75rem, Padding dipres)
         let tableHTML = `
-        <table style="width:100%; border-collapse: collapse; margin-top: 25px; font-size: 0.85rem; text-align: left; background: white; border-radius: 10px; overflow: hidden; border:1px solid #e2e8f0;">
+        <table style="width:100%; border-collapse: collapse; margin-top: 5px; font-size: 0.75rem; text-align: left; background: white; border-radius: 8px; overflow: hidden; border:1px solid #e2e8f0; table-layout: fixed;">
             <thead>
                 <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
-                    <th style="padding:12px; font-weight:700; color:#475569;">MATA PELAJARAN</th>
-                    <th style="padding:12px; font-weight:700; text-align:center; color:#475569;">NILAI</th>
+                    <th style="padding:8px 5px; font-weight:700; color:#475569; width: 75%;">MATA PELAJARAN</th>
+                    <th style="padding:8px 5px; font-weight:700; text-align:center; color:#475569; width: 25%;">NILAI</th>
                 </tr>
             </thead>
             <tbody>
@@ -1257,7 +1258,11 @@ function renderStudentResult(res) {
             const g = grades.find(x => String(x[2]) == String(sub[0]));
             const val = g ? parseFloat(g[3]) : 0;
             sum += val; count++;
-            tableHTML += `<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:12px; color:#334155;">${sub[1]}</td><td style="padding:12px; text-align:center; font-weight:700;">${val}</td></tr>`;
+            // Nama mapel dibiarkan turun baris jika panjang (white-space: normal)
+            tableHTML += `<tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:8px 5px; color:#334155; white-space: normal;">${sub[1]}</td>
+                <td style="padding:8px 5px; text-align:center; font-weight:700;">${val}</td>
+            </tr>`;
         });
 
         const avg = count > 0 ? (sum/count).toFixed(2) : 0;
@@ -1267,32 +1272,47 @@ function renderStudentResult(res) {
             </tbody>
             <tfoot>
                 <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
-                    <td style="padding:12px; text-align:right; font-weight:700; color:#334155;">JUMLAH</td>
-                    <td style="padding:12px; text-align:center; font-weight:800; color:#2563eb;">${sum.toFixed(2)}</td>
+                    <td style="padding:8px 5px; text-align:right; font-weight:700; color:#334155;">JUMLAH</td>
+                    <td style="padding:8px 5px; text-align:center; font-weight:800; color:#2563eb;">${sum.toFixed(2)}</td>
                 </tr>
                 <tr style="background:#f8fafc;">
-                    <td style="padding:12px; text-align:right; font-weight:700; color:#334155;">RATA-RATA</td>
-                    <td style="padding:12px; text-align:center; font-weight:800; color:#2563eb;">${avg}</td>
+                    <td style="padding:8px 5px; text-align:right; font-weight:700; color:#334155;">RATA-RATA</td>
+                    <td style="padding:8px 5px; text-align:center; font-weight:800; color:#2563eb;">${avg}</td>
                 </tr>
             </tfoot>
         </table>`;
 
-        if(el('res-table-container')) el('res-table-container').innerHTML = tableHTML;
+        // 1. MASUKKAN TABEL KE DALAM POP-UP
+        if(el('modal-nilai-content')) el('modal-nilai-content').innerHTML = tableHTML;
 
-        const btnDl = el('btn-download-skl');
-        if(btnDl) {
-            if(s.link_file_skl && s.link_file_skl.length > 10) {
-                btnDl.classList.remove('hidden');
-                btnDl.style.display = 'block';
-                btnDl.onclick = () => window.open(s.link_file_skl, '_blank');
-            } else {
-                btnDl.classList.add('hidden');
-                btnDl.style.display = 'none';
-            }
+        // 2. BUAT 2 TOMBOL SEJAJAR DI HALAMAN UTAMA SISWA
+        let actionBtns = '<div style="display:flex; gap:10px; margin-top:25px; width:100%;">';
+        
+        // Tombol Pop-Up Nilai
+        actionBtns += `<button class="btn btn-outline" style="flex:1; border-radius:12px; font-size:0.85rem; padding:12px 5px; background:white; color:#1e293b; border:1px solid #cbd5e1; box-shadow:0 2px 4px rgba(0,0,0,0.05);" onclick="openModalNilai()">📊 REKAP NILAI</button>`;
+        
+        // Tombol Download SKL (Mengecek ketersediaan link file)
+        if(s.link_file_skl && s.link_file_skl.length > 10) {
+            actionBtns += `<button class="btn btn-primary" style="flex:1; border-radius:12px; font-size:0.85rem; padding:12px 5px; box-shadow:0 4px 10px rgba(37,99,235,0.3);" onclick="window.open('${s.link_file_skl}', '_blank')">📥 LIHAT SKL</button>`;
+        } else {
+            actionBtns += `<button class="btn btn-primary" style="flex:1; border-radius:12px; font-size:0.85rem; padding:12px 5px; opacity:0.5; cursor:not-allowed;" disabled>SKL BELUM ADA</button>`;
         }
+        actionBtns += '</div>';
+
+        // 3. TAMPILKAN TOMBOL DI WADAH YANG SEBELUMNYA DIPAKAI TABEL
+        if(el('res-table-container')) el('res-table-container').innerHTML = actionBtns;
+
+        // Sembunyikan tombol download SKL yang versi lama (agar tidak double)
+        if(el('btn-download-skl')) el('btn-download-skl').style.display = 'none';
+
     } catch (error) {
-        Swal.fire('Error Render', 'Gagal menyusun tabel nilai.', 'error');
+        Swal.fire('Error Render', 'Gagal menyusun data nilai.', 'error');
     }
+}
+
+// Fungsi pembuka Pop-Up Nilai
+function openModalNilai() {
+    el('modal-nilai-siswa').classList.add('active');
 }
 
 function openPrivacy() { el('modal-privacy').classList.add('active'); }
