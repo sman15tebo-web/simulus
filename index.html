@@ -150,8 +150,10 @@
         .grid-2, .grid-3 { grid-template-columns: 1fr; gap: 15px; }
         
         .app-header { position: fixed; top: 0; left: 0; width: 100%; z-index: 800; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .admin-body { margin-top: var(--header-height); }
-        .main { padding: 20px 15px; padding-bottom: 100px; }
+        /* --- 1. PERBAIKAN LAYAR TERTUTUP (ATAS & BAWAH) --- */
+        .admin-body { margin-top: var(--header-height) !important; height: calc(100vh - var(--header-height)) !important; }
+        .main { padding: 15px !important; padding-bottom: 100px !important; } /* Bebaskan area bawah dari menu melayang */
+        .fab-container { bottom: 85px !important; right: 15px !important; } /* Angkat tombol scroll agar tidak ketutup menu */
         
         /* SIDEBAR FIXED & HIDDEN PERFECTLY */
         .sidebar { 
@@ -169,7 +171,6 @@
         .header-left h3 { display: none; } 
         .header-left span { font-size: 0.8rem; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .fab-container { display: flex; }
         .card { padding: 5px 5px; margin-bottom: 0px; }
         .stat-card { padding: 10px; margin-bottom: 0; }
         .modal-box { width: 95%; max-height: 96vh; padding: 5px; }
@@ -189,16 +190,55 @@
         .icon-logout { display: inline; font-size: 1.2rem; }
         .top-logout-btn { padding: 8px 12px !important; border-radius: 8px !important; }
         .menu-toggle { display: none !important; } /* Pastikan menu hamburger mati total di HP */
+
         
+
+        /* --- 2. TABEL NILAI COMPACT KHUSUS HP (Sesuai Request) --- */
         #tbl-grades-input thead { display: none; }
-        #tbl-grades-input, #tbl-grades-input tbody, #tbl-grades-input tr, #tbl-grades-input td { display: block; width: 100%; box-sizing: border-box; }
-        #tbl-grades-input tr { margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; background: white; }
-        #tbl-grades-input td { padding: 8px 5px; text-align: right; border-bottom: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-        #tbl-grades-input td:last-child { border-bottom: none; }
-        #tbl-grades-input td::before { content: attr(data-label); font-weight: 600; color: #475569; font-size: 0.85rem; }
-        #tbl-grades-input td:first-child { background: #f8fafc; font-weight: bold; justify-content: center; text-align: center; border-radius: 6px; padding: 10px; margin-bottom: 10px; color: #1e40af; }
-        #tbl-grades-input td:first-child::before { display: none; }
-        #tbl-grades-input td input { width: 60%; text-align: center; }
+        #tbl-grades-input, #tbl-grades-input tbody { display: block; width: 100%; }
+        
+        #tbl-grades-input tr { 
+            display: flex; flex-wrap: wrap; 
+            background: white; border: 1px solid #cbd5e1; 
+            border-radius: 8px; margin-bottom: 10px; padding: 8px 10px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        
+        #tbl-grades-input td { border: none; padding: 2px; }
+        
+        /* Baris 1: Nama Mapel (Full Width) */
+        #tbl-grades-input td:nth-child(1) { 
+            width: 100%; font-weight: 700; color: #1e40af; 
+            border-bottom: 1px dashed #e2e8f0; 
+            padding-bottom: 6px; margin-bottom: 6px; text-align: left;
+            font-size: 0.9rem;
+        }
+        
+        /* Baris 2: Tiga Kolom Sejajar (Dibagi 3 rata) */
+        #tbl-grades-input td:nth-child(2),
+        #tbl-grades-input td:nth-child(3),
+        #tbl-grades-input td:nth-child(4) { 
+            width: 33.33%; box-sizing: border-box; 
+        }
+        
+        /* Hilangkan teks label lama (jika ada) */
+        #tbl-grades-input td::before { display: none !important; }
+        
+        /* Kecilkan inputan agar pas dan cantik */
+        #tbl-grades-input td input { 
+            width: 100%; padding: 8px 4px; font-size: 0.7rem; text-align: center; 
+            border-radius: 6px;
+        }
+
+        /* Bikin Teks Placeholder (Bayangan) jadi kecil */
+        #tbl-grades-input td input::placeholder { color: #94a3b8; font-size: 0.65rem; }
+
+        /* Penyesuaian Bagian Bawah (Total & Rata-rata) */
+        #tbl-grades-input tfoot tr { background: #f8fafc; align-items: center; }
+        #tbl-grades-input tfoot td:nth-child(1) { width: 100%; text-align: center; font-size: 0.8rem; padding-bottom: 5px; color: #64748b; border-bottom: 1px solid #e2e8f0;}
+        #tbl-grades-input tfoot td:nth-child(2), 
+        #tbl-grades-input tfoot td:nth-child(3) { width: 33.33%; text-align: center; font-size: 0.95rem; color: #2563eb; padding-top: 8px;}
+        #tbl-grades-input tfoot td:nth-child(4) { display: none; } /* Kosongkan ujungnya */
 
         /* --- 1. MATIKAN SIDEBAR & MENU HAMBURGER DI HP --- */
         .sidebar { display: none !important; }
@@ -483,8 +523,8 @@
                      </div>
                      <!-- PERBAIKAN TOMBOL CETAK HP: Dibuat sejajar kiri-kanan -->
                      <div style="display:flex; align-items:flex-end; gap:10px; width:100%; margin-top:5px;">
-                         <button class="btn btn-danger" style="flex:1; padding:12px 5px;" onclick="batchPrintSKL('pdf')">🖨️ Cetak PDF</button>
-                         <button class="btn btn-primary" style="flex:1; padding:12px 5px;" onclick="batchPrintSKL('doc')">🖨️ Cetak DOC</button>
+                         <button class="btn btn-danger" style="flex:1; padding:12px 5px;" onclick="batchPrintSKL('pdf')">🖨️ Semua PDF</button>
+                         <button class="btn btn-primary" style="flex:1; padding:12px 5px;" onclick="batchPrintSKL('doc')">🖨️ Semua DOC</button>
                      </div>
                  </div>
                  
