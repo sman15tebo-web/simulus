@@ -145,6 +145,14 @@
 
     .menu-toggle { display: none; font-size: 24px; cursor: pointer; padding: 5px; }
 
+    /* --- PERBAIKAN TTL 2 BARIS KHUSUS HP --- */
+        .show-mobile { display: none; }
+        @media (max-width: 768px) {
+            .hide-mobile { display: none; }
+            /* Membuat tanggal lahir turun ke bawah dan cetak tebal di HP */
+            .show-mobile { display: block; margin-top: 4px; color: #1e40af; font-weight: 700; }
+        }
+
     /* RESPONSIVE */
     @media (max-width: 768px) {
         .grid-2, .grid-3 { grid-template-columns: 1fr; gap: 15px; }
