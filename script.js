@@ -1242,13 +1242,13 @@ function renderStudentResult(res) {
 
         let sum = 0, count = 0;
         
-        // TABEL KECIL KHUSUS POP-UP (Font 0.75rem, Padding dipres)
+       // TABEL KECIL KHUSUS POP-UP (Dikunci 75% dan 25%)
         let tableHTML = `
         <table style="width:100%; border-collapse: collapse; margin-top: 5px; font-size: 0.75rem; text-align: left; background: white; border-radius: 8px; overflow: hidden; border:1px solid #e2e8f0; table-layout: fixed;">
             <thead>
                 <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
                     <th style="padding:8px 5px; font-weight:700; color:#475569; width: 75%;">MATA PELAJARAN</th>
-                    <th style="padding:8px 5px; font-weight:700; text-align:center; color:#475569; width: 25%;">NILAI</th>
+                    <th style="padding:8px 10px; font-weight:700; text-align:right; color:#475569; width: 25%;">NILAI</th>
                 </tr>
             </thead>
             <tbody>
@@ -1258,26 +1258,32 @@ function renderStudentResult(res) {
             const g = grades.find(x => String(x[2]) == String(sub[0]));
             const val = g ? parseFloat(g[3]) : 0;
             sum += val; count++;
-            // Nama mapel dibiarkan turun baris jika panjang (white-space: normal)
+            
+            // PERBAIKAN: Teks mapel dibatasi max 2 baris, nilai diratakan ke kanan
             tableHTML += `<tr style="border-bottom:1px solid #f1f5f9;">
-                <td style="padding:8px 5px; color:#334155; white-space: normal;">${sub[1]}</td>
-                <td style="padding:8px 5px; text-align:center; font-weight:700;">${val}</td>
+                <td style="padding:8px 5px; vertical-align: middle;">
+                    <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; line-height: 1.3; color:#334155;">
+                        ${sub[1]}
+                    </div>
+                </td>
+                <td style="padding:8px 10px; text-align:right; font-weight:800; color:#0f172a; vertical-align: middle;">${val}</td>
             </tr>`;
         });
 
         const avg = count > 0 ? (sum/count).toFixed(2) : 0;
         if(el('res-avg')) el('res-avg').innerText = avg; 
 
+        // PERBAIKAN: Total dan Rata-rata juga diratakan ke kanan
         tableHTML += `
             </tbody>
             <tfoot>
                 <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
                     <td style="padding:8px 5px; text-align:right; font-weight:700; color:#334155;">JUMLAH</td>
-                    <td style="padding:8px 5px; text-align:center; font-weight:800; color:#2563eb;">${sum.toFixed(2)}</td>
+                    <td style="padding:8px 10px; text-align:right; font-weight:800; color:#2563eb;">${sum.toFixed(2)}</td>
                 </tr>
                 <tr style="background:#f8fafc;">
                     <td style="padding:8px 5px; text-align:right; font-weight:700; color:#334155;">RATA-RATA</td>
-                    <td style="padding:8px 5px; text-align:center; font-weight:800; color:#2563eb;">${avg}</td>
+                    <td style="padding:8px 10px; text-align:right; font-weight:800; color:#2563eb;">${avg}</td>
                 </tr>
             </tfoot>
         </table>`;
