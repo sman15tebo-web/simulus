@@ -1242,22 +1242,6 @@ function renderStudentResult(res) {
 
         let sum = 0, count = 0;
         
-       // TABEL KECIL KHUSUS POP-UP (Dikunci 75% dan 25%)
-        let tableHTML = `
-        <table style="width:100%; border-collapse: collapse; margin-top: 5px; font-size: 0.75rem; text-align: left; background: white; border-radius: 8px; overflow: hidden; border:1px solid #e2e8f0; table-layout: fixed;">
-            <thead>
-                <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
-                    <th style="padding:8px 5px; font-weight:700; color:#475569; width: 75%;">MATA PELAJARAN</th>
-                    <th style="padding:8px 10px; font-weight:700; text-align:right; color:#475569; width: 25%;">NILAI</th>
-                </tr>
-            </thead>
-            <tbody>
-        `;
-
-        filteredSubjects.forEach((sub) => {
-            const g = grades.find(x => String(x[2]) == String(sub[0]));
-            const val = g ? parseFloat(g[3]) : 0;
-            sum += val; count++;
             
            // TABEL KECIL KHUSUS POP-UP (Anti Meluber, Dikunci 75% - 25%)
         let tableHTML = `
