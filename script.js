@@ -1259,34 +1259,52 @@ function renderStudentResult(res) {
             const val = g ? parseFloat(g[3]) : 0;
             sum += val; count++;
             
-            // PERBAIKAN: Teks mapel dibatasi max 2 baris, nilai diratakan ke kanan
+           // TABEL KECIL KHUSUS POP-UP (Anti Meluber, Dikunci 75% - 25%)
+        let tableHTML = `
+        <div style="width: 100%; overflow-x: hidden; padding: 2px;">
+        <table style="width:100%; border-collapse: collapse; margin-top: 5px; font-size: 0.8rem; text-align: left; background: white; border-radius: 8px; overflow: hidden; border:1px solid #e2e8f0;">
+            <thead>
+                <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
+                    <th style="padding:10px 8px; font-weight:700; color:#475569; width:75%;">MATA PELAJARAN</th>
+                    <th style="padding:10px 8px; font-weight:700; text-align:right; color:#475569; width:25%;">NILAI</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+
+        filteredSubjects.forEach((sub) => {
+            const g = grades.find(x => String(x[2]) == String(sub[0]));
+            const val = g ? parseFloat(g[3]) : 0;
+            sum += val; count++;
+            
+            // Teks mapel dibatasi max 2 baris dan dipaksa turun baris (word-break) agar tidak mendorong kolom nilai ke kanan
             tableHTML += `<tr style="border-bottom:1px solid #f1f5f9;">
-                <td style="padding:8px 5px; vertical-align: middle;">
-                    <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; line-height: 1.3; color:#334155;">
+                <td style="padding:10px 8px; vertical-align: middle;">
+                    <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word; line-height: 1.4; color:#334155; padding-right:5px;">
                         ${sub[1]}
                     </div>
                 </td>
-                <td style="padding:8px 10px; text-align:right; font-weight:800; color:#0f172a; vertical-align: middle;">${val}</td>
+                <td style="padding:10px 8px; text-align:right; font-weight:800; color:#0f172a; vertical-align: middle;">${val}</td>
             </tr>`;
         });
 
         const avg = count > 0 ? (sum/count).toFixed(2) : 0;
         if(el('res-avg')) el('res-avg').innerText = avg; 
 
-        // PERBAIKAN: Total dan Rata-rata juga diratakan ke kanan
         tableHTML += `
             </tbody>
             <tfoot>
                 <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
-                    <td style="padding:8px 5px; text-align:right; font-weight:700; color:#334155;">JUMLAH</td>
-                    <td style="padding:8px 10px; text-align:right; font-weight:800; color:#2563eb;">${sum.toFixed(2)}</td>
+                    <td style="padding:10px 8px; text-align:right; font-weight:700; color:#334155;">JUMLAH</td>
+                    <td style="padding:10px 8px; text-align:right; font-weight:800; color:#2563eb;">${sum.toFixed(2)}</td>
                 </tr>
                 <tr style="background:#f8fafc;">
-                    <td style="padding:8px 5px; text-align:right; font-weight:700; color:#334155;">RATA-RATA</td>
-                    <td style="padding:8px 10px; text-align:right; font-weight:800; color:#2563eb;">${avg}</td>
+                    <td style="padding:10px 8px; text-align:right; font-weight:700; color:#334155;">RATA-RATA</td>
+                    <td style="padding:10px 8px; text-align:right; font-weight:800; color:#2563eb;">${avg}</td>
                 </tr>
             </tfoot>
-        </table>`;
+        </table>
+        </div>`;
 
         // 1. MASUKKAN TABEL KE DALAM POP-UP
         if(el('modal-nilai-content')) el('modal-nilai-content').innerHTML = tableHTML;
