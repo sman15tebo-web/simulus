@@ -154,9 +154,12 @@
         /* --- 1. PERBAIKAN LAYAR TERTUTUP (ATAS & BAWAH) --- */
         .admin-body { margin-top: var(--header-height) !important; height: calc(100vh - var(--header-height)) !important; }
         
-        /* Tambahkan padding atas 20px agar aman dari header, dan bawah 120px aman dari menu */
-        .main { padding: 20px 15px 120px 15px !important; } 
+        /* PERBAIKAN ADMIN: Padding atas ditambah jadi 40px agar judul tidak ketutup header */
+        .main { padding: 40px 15px 120px 15px !important; } 
         .fab-container { bottom: 85px !important; right: 15px !important; }
+
+        /* PERBAIKAN SISWA: Tambah jarak atas agar Logo tidak nyundul kepotong layar HP */
+        .student-header { padding-top: 35px !important; padding-bottom: 20px !important; }
         
         /* SIDEBAR FIXED & HIDDEN PERFECTLY */
         .sidebar { 
