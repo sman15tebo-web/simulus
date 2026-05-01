@@ -150,10 +150,13 @@
         .grid-2, .grid-3 { grid-template-columns: 1fr; gap: 15px; }
         
         .app-header { position: fixed; top: 0; left: 0; width: 100%; z-index: 800; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        
         /* --- 1. PERBAIKAN LAYAR TERTUTUP (ATAS & BAWAH) --- */
         .admin-body { margin-top: var(--header-height) !important; height: calc(100vh - var(--header-height)) !important; }
-        .main { padding: 15px !important; padding-bottom: 100px !important; } /* Bebaskan area bawah dari menu melayang */
-        .fab-container { bottom: 85px !important; right: 15px !important; } /* Angkat tombol scroll agar tidak ketutup menu */
+        
+        /* Tambahkan padding atas 20px agar aman dari header, dan bawah 120px aman dari menu */
+        .main { padding: 20px 15px 120px 15px !important; } 
+        .fab-container { bottom: 85px !important; right: 15px !important; }
         
         /* SIDEBAR FIXED & HIDDEN PERFECTLY */
         .sidebar { 
@@ -191,17 +194,22 @@
         .top-logout-btn { padding: 8px 12px !important; border-radius: 8px !important; }
         .menu-toggle { display: none !important; } /* Pastikan menu hamburger mati total di HP */
 
-        
+      
 
-        /* --- 2. TABEL NILAI COMPACT KHUSUS HP (Sesuai Request) --- */
+        /* --- 2. KUNCI LEBAR TABEL NILAI COMPACT KHUSUS HP --- */
+        #page-grades .table-container { width: 100% !important; margin: 0 !important; padding: 0 !important; overflow-x: hidden !important; border: none !important; }
+        
+        /* Hancurkan sifat "min-width: 600px" bawaan tabel agar tidak bisa digeser ke kanan */
+        #tbl-grades-input { min-width: 0 !important; width: 100% !important; overflow: hidden !important; box-sizing: border-box !important; }
         #tbl-grades-input thead { display: none; }
-        #tbl-grades-input, #tbl-grades-input tbody { display: block; width: 100%; }
+        #tbl-grades-input, #tbl-grades-input tbody { display: block; width: 100%; box-sizing: border-box; }
         
         #tbl-grades-input tr { 
             display: flex; flex-wrap: wrap; 
             background: white; border: 1px solid #cbd5e1; 
             border-radius: 8px; margin-bottom: 10px; padding: 8px 10px; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            width: 100%; box-sizing: border-box; /* Kunci agar baris tidak meluber */
         }
         
         #tbl-grades-input td { border: none; padding: 2px; }
@@ -221,16 +229,8 @@
             width: 33.33%; box-sizing: border-box; 
         }
         
-        /* Hilangkan teks label lama (jika ada) */
         #tbl-grades-input td::before { display: none !important; }
-        
-        /* Kecilkan inputan agar pas dan cantik */
-        #tbl-grades-input td input { 
-            width: 100%; padding: 8px 4px; font-size: 0.7rem; text-align: center; 
-            border-radius: 6px;
-        }
-
-        /* Bikin Teks Placeholder (Bayangan) jadi kecil */
+        #tbl-grades-input td input { width: 100%; padding: 8px 4px; font-size: 0.7rem; text-align: center; border-radius: 6px; box-sizing: border-box; }
         #tbl-grades-input td input::placeholder { color: #94a3b8; font-size: 0.65rem; }
 
         /* Penyesuaian Bagian Bawah (Total & Rata-rata) */
@@ -238,7 +238,7 @@
         #tbl-grades-input tfoot td:nth-child(1) { width: 100%; text-align: center; font-size: 0.8rem; padding-bottom: 5px; color: #64748b; border-bottom: 1px solid #e2e8f0;}
         #tbl-grades-input tfoot td:nth-child(2), 
         #tbl-grades-input tfoot td:nth-child(3) { width: 33.33%; text-align: center; font-size: 0.95rem; color: #2563eb; padding-top: 8px;}
-        #tbl-grades-input tfoot td:nth-child(4) { display: none; } /* Kosongkan ujungnya */
+        #tbl-grades-input tfoot td:nth-child(4) { display: none; }
 
         /* --- 1. MATIKAN SIDEBAR & MENU HAMBURGER DI HP --- */
         .sidebar { display: none !important; }
@@ -572,13 +572,16 @@
              </div>
           </div>
           </form>
+       </div> <!-- ini penutup page-settings -->
+        
+        <!-- FOOTER DIPINDAHKAN KE SINI (Di dalam .main) -->
+        <div class="app-footer" style="margin-top: 30px; border-radius: 12px; padding-bottom: 20px;">
+            © 2026 Sistem Informasi Pengumuman Kelulusan Siswa. All Right Reserved. <br>
+            <a onclick="openPrivacy()" style="cursor:pointer; text-decoration:underline;">Kebijakan Privasi</a> | Powered by : <a href='https://www.farypin-inovasiteknologi.com' target="_blank" style="color:grey">PT. Farypin Inovasi Teknologi</a>
         </div>
 
-      </div> 
-    </div>
-    <div class="app-footer">© 2026 Sistem Informasi Pengumuman Kelulusan Siswa. All Right Reserved. <br>
-          <a onclick="openPrivacy()" style="cursor:pointer; text-decoration:underline;">Kebijakan Privasi</a> | Powered by : <a href='https://www.farypin-inovasiteknologi.com' target="_blank" style="color:grey">PT. Farypin Inovasi Teknologi</a>
-  </div>
+      </div> <!-- ini penutup main -->
+    </div> <!-- ini penutup admin-body -->
 
   <!-- BOTTOM NAVIGATION KHUSUS HP -->
          <div class="bottom-nav">
@@ -709,6 +712,20 @@
          <button class="btn btn-outline" onclick="closeModal('modal-review')">Tutup</button>
       </div>
   </div>
+  </div>
+
+  <!-- MODAL REKAP NILAI SISWA (BARU) -->
+  <div id="modal-nilai-siswa" class="modal-overlay">
+      <div class="modal-box" style="max-width: 450px; padding: 15px; width: 95%;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:10px;">
+              <h3 style="margin:0; font-size:1.1rem; color:#1e293b;">Rekap Nilai Siswa</h3>
+              <span onclick="closeModal('modal-nilai-siswa')" class="close" style="position:static; margin:0;">×</span>
+          </div>
+          <div id="modal-nilai-content" style="overflow-x:hidden; max-height: 60vh; overflow-y: auto;">
+              <!-- Tabel nilai akan disuntikkan ke sini oleh JavaScript -->
+          </div>
+          <button class="btn btn-primary" style="width:100%; margin-top:15px; border-radius: 12px;" onclick="closeModal('modal-nilai-siswa')">Tutup Rekap</button>
+      </div>
   </div>
   
   <div id="modal-privacy" class="modal-overlay">
