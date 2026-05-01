@@ -1125,8 +1125,35 @@ function doImport() {
 // 12. STUDENT VIEW (KELULUSAN) - BRUTE FORCE
 // ==========================================
 
+// --- PASTIKAN FUNGSI INI ADA DI LUAR/ATAS ---
+function formatTglIndo(dateStr) {
+    if(!dateStr || dateStr.trim() === "-" || dateStr.trim() === "") return "";
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    try {
+        if(dateStr.includes("/")) {
+            const parts = dateStr.split("/");
+            if(parts.length === 3) {
+                let m = parseInt(parts[0]);
+                let d = parseInt(parts[1]);
+                let y = parseInt(parts[2]);
+                if(y < 100) y += (y < 50) ? 2000 : 1900; 
+                let day = String(d).padStart(2, '0');
+                let month = months[m-1];
+                if(month) return `${day} ${month} ${y}`;
+            }
+        }
+        let d = new Date(dateStr);
+        if(!isNaN(d.getTime())) {
+            let day = String(d.getDate()).padStart(2, '0');
+            let month = months[d.getMonth()];
+            let year = d.getFullYear();
+            return `${day} ${month} ${year}`;
+        }
+        return dateStr;
+    } catch(e) { return dateStr; }
+}
+
 function renderStudentView(res) {
-    // 1. Tangkap jika data dari server kosong agar tidak blank putih
     if(!res || !res.data) {
         return Swal.fire('Error Server', 'Data gagal dimuat. Hubungi Admin.', 'error');
     }
@@ -1135,7 +1162,6 @@ function renderStudentView(res) {
         const s = res.data || {}; 
         const set = res.settings || {};
 
-        // 2. Tulis Header
         if(el('s-nama-ins-text')) el('s-nama-ins-text').innerText = set.NAMA_INSTANSI || 'PEMERINTAH';
         if(el('s-nama-sek-text')) el('s-nama-sek-text').innerText = set.NAMA_SEKOLAH || 'SEKOLAH';
         if(el('s-nama-sek')) el('s-nama-sek').innerText = set.NAMA_SEKOLAH || 'SEKOLAH';
@@ -1149,19 +1175,27 @@ function renderStudentView(res) {
 
         // JIKA PENGUMUMAN DIBUKA
         if (res.isOpen === true) {
-            // PAKSA BUKA KOTAK HASIL (Brute Force Display Block)
             if(el('res-content-locked')) { el('res-content-locked').classList.add('hidden'); el('res-content-locked').style.display = 'none'; }
             if(el('res-content-open')) { el('res-content-open').classList.remove('hidden'); el('res-content-open').style.display = 'block'; }
 
             if(el('res-nis')) el('res-nis').innerText = s.nis || '-';
-            if(el('res-ttl')) el('res-ttl').innerText = s.ttl || '-';
+            
+            // --- LOGIKA TTL INDONESIA & 2 BARIS KHUSUS HP ---
+            let ttlArray = (s.ttl || '').split(',');
+            let tempat = ttlArray[0] ? ttlArray[0].trim() : '-';
+            let tglRaw = ttlArray[1] ? ttlArray[1].trim() : '';
+            let tglIndo = formatTglIndo(tglRaw) || '-'; 
+            
+            // Render ke HTML dengan class pemutus baris
+            if(el('res-ttl')) el('res-ttl').innerHTML = `${tempat}<span class="hide-mobile">, </span><br class="show-mobile">${tglIndo}`;
+            
             if(el('res-kelas')) el('res-kelas').innerText = s.kelas || '-';
             if(el('res-ortu')) el('res-ortu').innerText = s.ortu || '-';
 
             renderStudentResult(res);
         } 
         
-        // JIKA PENGUMUMAN BELUM WAKTUNYA (GEMBOK MUNDUR)
+        // JIKA PENGUMUMAN BELUM WAKTUNYA
         else {
             if(el('res-content-open')) { el('res-content-open').classList.add('hidden'); el('res-content-open').style.display = 'none'; }
             if(el('res-content-locked')) { el('res-content-locked').classList.remove('hidden'); el('res-content-locked').style.display = 'block'; }
@@ -1174,39 +1208,27 @@ function renderStudentView(res) {
                 const diff = target - now;
                 
                 if(diff > 0) {
-                    // Masih jalan hitung mundur
                     const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                     const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                     const sec = Math.floor((diff % (1000 * 60)) / 1000);
                     if(el('res-timer')) el('res-timer').innerText = `${h}j ${m}m ${sec}d`;
                 } else {
-                    // WAKTU HABIS! 
                     clearInterval(COUNTDOWN_INTERVAL);
                     if(el('res-timer')) {
                         el('res-timer').innerHTML = `<div style="font-size:1.2rem; color:#b91c1c; margin-bottom:10px;">Menarik Data...</div><div class="spinner" style="margin: 0 auto;"><div></div><div></div><div></div></div>`;
                     }
-                    
-                    // PERBAIKAN SAKTI: Auto-Login ulang di belakang layar untuk menjemput data nilai!
                     setTimeout(async () => {
                         try {
                             const u = CURRENT_USER.data.nisn;
-                            // Jika password siswa tidak tersimpan di cache, terpaksa minta mereka login manual
-                            if(!CURRENT_USER || !u) {
-                                window.location.reload(); return;
-                            }
-                            
-                            // Tarik ulang dari server pakai data yang tersimpan
+                            if(!CURRENT_USER || !u) { window.location.reload(); return; }
                             const freshRes = await fetchAPI('processLogin', { u: u, p: CURRENT_USER.password_used || '123456' });
-                            
                             if(freshRes.status === 'success' && freshRes.isOpen) {
                                 CURRENT_USER = freshRes;
                                 localStorage.setItem('userData', JSON.stringify(freshRes));
-                                renderStudentView(freshRes); // Gambar ulang layar dengan nilai yang sudah turun!
-                            } else {
-                                window.location.reload(); // Gagal auto-tarik, paksa reload browser
-                            }
+                                renderStudentView(freshRes); 
+                            } else { window.location.reload(); }
                         } catch(e) { window.location.reload(); }
-                    }, 2000); // Beri jeda 2 detik dramatis sebelum membuka
+                    }, 2000); 
                 }
             };
             checkTime();
@@ -1242,15 +1264,14 @@ function renderStudentResult(res) {
 
         let sum = 0, count = 0;
         
-            
-           // TABEL KECIL KHUSUS POP-UP (Anti Meluber, Dikunci 75% - 25%)
+        // --- TABEL POP-UP (OVERFLOW-X AUTO BISA DI SCROLL) ---
         let tableHTML = `
-        <div style="width: 100%; overflow-x: hidden; padding: 2px;">
-        <table style="width:100%; border-collapse: collapse; margin-top: 5px; font-size: 0.8rem; text-align: left; background: white; border-radius: 8px; overflow: hidden; border:1px solid #e2e8f0;">
+        <div style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 10px;">
+        <table style="width: 100%; min-width: 400px; border-collapse: collapse; font-size: 0.85rem; text-align: left; background: white;">
             <thead>
                 <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
-                    <th style="padding:10px 8px; font-weight:700; color:#475569; width:75%;">MATA PELAJARAN</th>
-                    <th style="padding:10px 8px; font-weight:700; text-align:right; color:#475569; width:25%;">NILAI</th>
+                    <th style="padding:12px 15px; font-weight:700; color:#475569;">MATA PELAJARAN</th>
+                    <th style="padding:12px 15px; font-weight:700; text-align:center; color:#475569; width: 80px;">NILAI</th>
                 </tr>
             </thead>
             <tbody>
@@ -1261,14 +1282,9 @@ function renderStudentResult(res) {
             const val = g ? parseFloat(g[3]) : 0;
             sum += val; count++;
             
-            // Teks mapel dibatasi max 2 baris dan dipaksa turun baris (word-break) agar tidak mendorong kolom nilai ke kanan
             tableHTML += `<tr style="border-bottom:1px solid #f1f5f9;">
-                <td style="padding:10px 8px; vertical-align: middle;">
-                    <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-break: break-word; line-height: 1.4; color:#334155; padding-right:5px;">
-                        ${sub[1]}
-                    </div>
-                </td>
-                <td style="padding:10px 8px; text-align:right; font-weight:800; color:#0f172a; vertical-align: middle;">${val}</td>
+                <td style="padding:12px 15px; color:#334155;">${sub[1]}</td>
+                <td style="padding:12px 15px; text-align:center; font-weight:800; color:#0f172a;">${val}</td>
             </tr>`;
         });
 
@@ -1279,27 +1295,24 @@ function renderStudentResult(res) {
             </tbody>
             <tfoot>
                 <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
-                    <td style="padding:10px 8px; text-align:right; font-weight:700; color:#334155;">JUMLAH</td>
-                    <td style="padding:10px 8px; text-align:right; font-weight:800; color:#2563eb;">${sum.toFixed(2)}</td>
+                    <td style="padding:12px 15px; text-align:right; font-weight:700; color:#334155;">JUMLAH</td>
+                    <td style="padding:12px 15px; text-align:center; font-weight:800; color:#2563eb; font-size:1rem;">${sum.toFixed(2)}</td>
                 </tr>
                 <tr style="background:#f8fafc;">
-                    <td style="padding:10px 8px; text-align:right; font-weight:700; color:#334155;">RATA-RATA</td>
-                    <td style="padding:10px 8px; text-align:right; font-weight:800; color:#2563eb;">${avg}</td>
+                    <td style="padding:12px 15px; text-align:right; font-weight:700; color:#334155;">RATA-RATA</td>
+                    <td style="padding:12px 15px; text-align:center; font-weight:800; color:#2563eb; font-size:1rem;">${avg}</td>
                 </tr>
             </tfoot>
         </table>
         </div>`;
 
-        // 1. MASUKKAN TABEL KE DALAM POP-UP
+        // MASUKKAN TABEL KE DALAM POP-UP
         if(el('modal-nilai-content')) el('modal-nilai-content').innerHTML = tableHTML;
 
-        // 2. BUAT 2 TOMBOL SEJAJAR DI HALAMAN UTAMA SISWA
+        // BUAT 2 TOMBOL SEJAJAR DI HALAMAN UTAMA SISWA
         let actionBtns = '<div style="display:flex; gap:10px; margin-top:25px; width:100%;">';
-        
-        // Tombol Pop-Up Nilai
         actionBtns += `<button class="btn btn-outline" style="flex:1; border-radius:12px; font-size:0.85rem; padding:12px 5px; background:white; color:#1e293b; border:1px solid #cbd5e1; box-shadow:0 2px 4px rgba(0,0,0,0.05);" onclick="openModalNilai()">📊 REKAP NILAI</button>`;
         
-        // Tombol Download SKL (Mengecek ketersediaan link file)
         if(s.link_file_skl && s.link_file_skl.length > 10) {
             actionBtns += `<button class="btn btn-primary" style="flex:1; border-radius:12px; font-size:0.85rem; padding:12px 5px; box-shadow:0 4px 10px rgba(37,99,235,0.3);" onclick="window.open('${s.link_file_skl}', '_blank')">📥 LIHAT SKL</button>`;
         } else {
@@ -1307,10 +1320,7 @@ function renderStudentResult(res) {
         }
         actionBtns += '</div>';
 
-        // 3. TAMPILKAN TOMBOL DI WADAH YANG SEBELUMNYA DIPAKAI TABEL
         if(el('res-table-container')) el('res-table-container').innerHTML = actionBtns;
-
-        // Sembunyikan tombol download SKL yang versi lama (agar tidak double)
         if(el('btn-download-skl')) el('btn-download-skl').style.display = 'none';
 
     } catch (error) {
