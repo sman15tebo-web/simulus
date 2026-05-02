@@ -972,14 +972,10 @@ el('file-input').addEventListener('change', function(e) {
 
 async function doCrop() {
     if(!CROPPER) return;
-    
     showLoader();
     
     try {
-        // Tentukan ukuran agar ringan (Logo max 150px, Foto max 200px)
         const maxWidth = CROP_MIME === 'image/png' ? 150 : 200;
-        
-        // Ambil gambar dari Cropper
         const canvas = CROPPER.getCroppedCanvas({ 
             width: maxWidth, 
             imageSmoothingEnabled: true,
@@ -988,22 +984,37 @@ async function doCrop() {
 
         if (!canvas) throw new Error("Canvas gagal dimuat");
 
-        // Jadikan teks Base64 langsung dengan kompresi 70%
+        // Dapatkan string Base64 dari kanvas
         const base64String = canvas.toDataURL(CROP_MIME || 'image/jpeg', 0.7);
         
-        // Masukkan Base64 ke dalam input teks (INI YANG BIKIN UNDEFINED SEBELUMNYA JIKA SALAH)
-        el(UPLOAD_TARGET_ID).value = base64String;
+        // --- LOGIKA BARU: JANGAN SIMPAN BASE64 KE SPREADSHEET, TAPI UPLOAD KE DRIVE! ---
+        const targetFolderId = UPLOAD_TARGET_ID === 'm-foto' ? ALL_DATA.settings['PHOTO_FOLDER_ID'] : ALL_DATA.settings['SKL_FOLDER_ID'];
+        const fileName = "IMG_" + new Date().getTime() + (CROP_MIME === 'image/png' ? '.png' : '.jpg');
         
-        // Tampilkan preview jika yang di-upload adalah foto siswa
-        if(UPLOAD_TARGET_ID === 'm-foto') { 
-            el('m-preview').src = base64String; 
-            el('m-preview').style.display='block'; 
+        // Lempar Base64 ke Backend untuk dijadikan File
+        const upRes = await fetchAPI('uploadFileToDrive', {
+            base64Data: base64String,
+            filename: fileName,
+            folderId: targetFolderId,
+            mimeType: CROP_MIME || 'image/jpeg'
+        });
+
+        if (upRes.status === 'success') {
+            // Jika berhasil, masukkan LINK GOOGLE DRIVE ke kotak input
+            el(UPLOAD_TARGET_ID).value = upRes.data;
+            
+            // Tampilkan Preview Foto di form Web HTML
+            if(UPLOAD_TARGET_ID === 'm-foto') { 
+                el('m-preview').src = upRes.data; 
+                el('m-preview').style.display='block'; 
+            }
+            el('modal-crop').classList.remove('active'); 
+        } else {
+            Swal.fire('Error', 'Gagal upload ke Drive: ' + upRes.message, 'error');
         }
-        
-        el('modal-crop').classList.remove('active'); 
     } catch (e) {
         console.error("Gagal Crop:", e);
-        Swal.fire('Error', 'Gagal memotong gambar', 'error');
+        Swal.fire('Error', 'Terjadi kesalahan sistem', 'error');
     }
     
     hideLoader();
