@@ -984,26 +984,30 @@ async function doCrop() {
 
         if (!canvas) throw new Error("Canvas gagal dimuat");
 
-        // Dapatkan string Base64 dari kanvas
         const base64String = canvas.toDataURL(CROP_MIME || 'image/jpeg', 0.7);
         
-        // --- LOGIKA BARU: JANGAN SIMPAN BASE64 KE SPREADSHEET, TAPI UPLOAD KE DRIVE! ---
         const targetFolderId = UPLOAD_TARGET_ID === 'm-foto' ? ALL_DATA.settings['PHOTO_FOLDER_ID'] : ALL_DATA.settings['SKL_FOLDER_ID'];
         const fileName = "IMG_" + new Date().getTime() + (CROP_MIME === 'image/png' ? '.png' : '.jpg');
         
-        // Lempar Base64 ke Backend untuk dijadikan File
+        // --- TANGKAP NAMA KELAS SEBELUM UPLOAD ---
+        let inputKelas = "";
+        if(UPLOAD_TARGET_ID === 'm-foto') {
+            const elKelas = document.getElementById('m-kelas');
+            inputKelas = (elKelas && elKelas.value.trim() !== "") ? elKelas.value.trim() : "Tanpa Kelas";
+        }
+        
+        // Lempar data ke Backend
         const upRes = await fetchAPI('uploadFileToDrive', {
             base64Data: base64String,
             filename: fileName,
             folderId: targetFolderId,
-            mimeType: CROP_MIME || 'image/jpeg'
+            mimeType: CROP_MIME || 'image/jpeg',
+            kelas: inputKelas
         });
 
         if (upRes.status === 'success') {
-            // Jika berhasil, masukkan LINK GOOGLE DRIVE ke kotak input
             el(UPLOAD_TARGET_ID).value = upRes.data;
             
-            // Tampilkan Preview Foto di form Web HTML
             if(UPLOAD_TARGET_ID === 'm-foto') { 
                 el('m-preview').src = upRes.data; 
                 el('m-preview').style.display='block'; 
