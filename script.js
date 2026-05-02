@@ -1262,45 +1262,62 @@ function renderStudentResult(res) {
             return subClass.split(',').map(x=>x.trim()).includes(studentClass);
         });
 
-        let sum = 0, count = 0;
+       let sum = 0, count = 0;
         
-        // --- TABEL POP-UP (OVERFLOW-X AUTO BISA DI SCROLL) ---
+        // Pisahkan kategori mapel
+        const mapelWajib = filteredSubjects.filter(sub => String(sub[3]).toLowerCase().includes('wajib') || String(sub[3]).toLowerCase().includes('umum'));
+        const mapelPilihan = filteredSubjects.filter(sub => String(sub[3]).toLowerCase().includes('pilihan') || String(sub[3]).toLowerCase().includes('peminatan'));
+
         let tableHTML = `
         <div style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 10px;">
         <table style="width: 100%; min-width: 400px; border-collapse: collapse; font-size: 0.85rem; text-align: left; background: white;">
             <thead>
-                <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
-                    <th style="padding:12px 15px; font-weight:700; color:#475569;">MATA PELAJARAN</th>
-                    <th style="padding:12px 15px; font-weight:700; text-align:center; color:#475569; width: 80px;">NILAI</th>
+                <tr style="background:#e2e8f0; border-bottom:2px solid #cbd5e1;">
+                    <th style="padding:12px 15px; font-weight:700; color:#1e293b; width: 40px; text-align:center;">NO</th>
+                    <th style="padding:12px 15px; font-weight:700; color:#1e293b;">MATA PELAJARAN</th>
+                    <th style="padding:12px 15px; font-weight:700; text-align:center; color:#1e293b; width: 80px;">NILAI</th>
                 </tr>
             </thead>
             <tbody>
         `;
 
-        filteredSubjects.forEach((sub) => {
-            const g = grades.find(x => String(x[2]) == String(sub[0]));
-            const val = g ? parseFloat(g[3]) : 0;
-            sum += val; count++;
-            
-            tableHTML += `<tr style="border-bottom:1px solid #f1f5f9;">
-                <td style="padding:12px 15px; color:#334155;">${sub[1]}</td>
-                <td style="padding:12px 15px; text-align:center; font-weight:800; color:#0f172a;">${val}</td>
-            </tr>`;
-        });
+        if(mapelWajib.length > 0) {
+            tableHTML += `<tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0;"><td colspan="2" style="padding:10px 15px; font-weight:600; color:#334155;">Mata Pelajaran Wajib</td><td style="border-left:1px solid #e2e8f0;"></td></tr>`;
+            mapelWajib.forEach((sub, i) => {
+                const g = grades.find(x => String(x[2]) == String(sub[0]));
+                const val = g ? parseFloat(g[3]) : 0;
+                sum += val; count++;
+                tableHTML += `<tr style="border-bottom:1px dashed #f1f5f9;">
+                    <td style="padding:10px 15px; text-align:center; color:#64748b;">${i+1}.</td>
+                    <td style="padding:10px 15px; color:#334155;">${sub[1]}</td>
+                    <td style="padding:10px 15px; text-align:center; font-weight:700; color:#0f172a; border-left:1px solid #e2e8f0;">${val}</td>
+                </tr>`;
+            });
+        }
 
-        const avg = count > 0 ? (sum/count).toFixed(2) : 0;
-        if(el('res-avg')) el('res-avg').innerText = avg; 
+        if(mapelPilihan.length > 0) {
+            tableHTML += `<tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0; border-top:1px solid #e2e8f0;"><td colspan="2" style="padding:10px 15px; font-weight:600; color:#334155;">Mata Pelajaran Pilihan</td><td style="border-left:1px solid #e2e8f0;"></td></tr>`;
+            mapelPilihan.forEach((sub, i) => {
+                const g = grades.find(x => String(x[2]) == String(sub[0]));
+                const val = g ? parseFloat(g[3]) : 0;
+                sum += val; count++;
+                tableHTML += `<tr style="border-bottom:1px dashed #f1f5f9;">
+                    <td style="padding:10px 15px; text-align:center; color:#64748b;">${i+1}.</td>
+                    <td style="padding:10px 15px; color:#334155;">${sub[1]}</td>
+                    <td style="padding:10px 15px; text-align:center; font-weight:700; color:#0f172a; border-left:1px solid #e2e8f0;">${val}</td>
+                </tr>`;
+            });
+        }
+
+        const avg = count > 0 ? (sum/count).toFixed(2) : "0";
+        if(el('res-avg')) el('res-avg').innerText = avg;
 
         tableHTML += `
             </tbody>
             <tfoot>
-                <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
-                    <td style="padding:12px 15px; text-align:right; font-weight:700; color:#334155;">JUMLAH</td>
-                    <td style="padding:12px 15px; text-align:center; font-weight:800; color:#2563eb; font-size:1rem;">${sum.toFixed(2)}</td>
-                </tr>
-                <tr style="background:#f8fafc;">
-                    <td style="padding:12px 15px; text-align:right; font-weight:700; color:#334155;">RATA-RATA</td>
-                    <td style="padding:12px 15px; text-align:center; font-weight:800; color:#2563eb; font-size:1rem;">${avg}</td>
+                <tr style="background:#e2e8f0; border-top:2px solid #cbd5e1;">
+                    <td colspan="2" style="padding:12px 15px; text-align:center; font-weight:800; color:#1e293b; letter-spacing:1px;">RATA-RATA</td>
+                    <td style="padding:12px 15px; text-align:center; font-weight:800; color:#2563eb; font-size:1.1rem; border-left:1px solid #cbd5e1;">${avg}</td>
                 </tr>
             </tfoot>
         </table>
